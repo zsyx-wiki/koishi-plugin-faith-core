@@ -220,6 +220,7 @@ export class FaithCoreService extends Service {
       this.businessTransactions,
       this.gameDay,
       (business, fields, config) => this.registerBusinessTable(business, fields, config),
+      this.ctx.database,
     );
   }
 }

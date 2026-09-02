@@ -1,4 +1,5 @@
 import { Model } from "koishi";
+import type { Database } from "koishi";
 import type { BusinessModelFields } from "../database";
 import type { FaithLifecycleScope } from "../lifecycle";
 import type { FaithLifecycleService } from "../lifecycle";
@@ -16,6 +17,7 @@ export class FaithBusinessCoreScope {
     fields: BusinessModelFields,
     config?: Partial<Model.Config>,
   ) => string;
+  #tableName?: string;
   readonly lifecycle: FaithLifecycleScope;
   readonly users: Readonly<FaithBusinessUsersApi>;
   readonly items: Readonly<FaithBusinessItemsApi>;
@@ -34,6 +36,13 @@ export class FaithBusinessCoreScope {
     get(uid: number): ReturnType<FaithBusinessDataService["get"]>;
     set(uid: number, value: { private?: Record<string, unknown>; public?: Record<string, unknown> }): ReturnType<FaithBusinessDataService["set"]>;
   }>;
+  readonly table: Readonly<{
+    get(query?: Record<string, unknown>, cursor?: Record<string, unknown>): Promise<any[]>;
+    create(value: Record<string, unknown>): Promise<any>;
+    upsert(values: readonly Record<string, unknown>[], keys?: readonly string[]): Promise<any>;
+    set(query: Record<string, unknown>, patch: Record<string, unknown>): Promise<any>;
+    remove(query: Record<string, unknown>): Promise<any>;
+  }>;
 
   constructor(
     lifecycle: FaithLifecycleService,
@@ -50,6 +59,7 @@ export class FaithBusinessCoreScope {
       fields: BusinessModelFields,
       config?: Partial<Model.Config>,
     ) => string,
+    database?: Database,
   ) {
     assertBusinessName(name);
     this.lifecycle = lifecycle.scope(`business:${name}`);
@@ -73,6 +83,21 @@ export class FaithBusinessCoreScope {
     });
     this.#businessData = businessData;
     this.#registerModel = registerModel;
+    const requireTable = () => {
+      if (!this.#tableName || !database) throw new Error(`业务 ${name} 尚未注册独立业务表`);
+      return this.#tableName as never;
+    };
+    const requireQuery = (query: Record<string, unknown>) => {
+      if (!query || typeof query !== "object" || Array.isArray(query) || !Object.keys(query).length) throw new Error("独立业务表写操作必须提供非空查询条件");
+      return query as never;
+    };
+    this.table = Object.freeze({
+      get: (query: Record<string, unknown> = {}, cursor?: Record<string, unknown>) => database!.get(requireTable(), query as never, cursor as never) as Promise<any[]>,
+      create: (value: Record<string, unknown>) => database!.create(requireTable(), value as never),
+      upsert: (values: readonly Record<string, unknown>[], keys?: readonly string[]) => database!.upsert(requireTable(), values as never, keys as never),
+      set: (query: Record<string, unknown>, patch: Record<string, unknown>) => database!.set(requireTable(), requireQuery(query), patch as never),
+      remove: (query: Record<string, unknown>) => database!.remove(requireTable(), requireQuery(query)),
+    });
     this.data = Object.freeze({
       get: (uid: number) => this.#businessData.get(uid, this.name),
       set: (uid: number, value: { private?: Record<string, unknown>; public?: Record<string, unknown> }) => this.#businessData.set(uid, this.name, value),
@@ -84,7 +109,8 @@ export class FaithBusinessCoreScope {
   }
 
   registerTable(fields: BusinessModelFields, config: Partial<Model.Config> = {}) {
-    return this.#registerModel(this.name, fields, config);
+    if (this.#tableName) throw new Error(`业务 ${this.name} 只能注册一张独立业务表`);
+    return this.#tableName = this.#registerModel(this.name, fields, config);
   }
 }
 
