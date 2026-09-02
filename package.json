@@ -1,0 +1,38 @@
+{
+  "name": "@mueo/koishi-plugin-faith-core",
+  "version": "3.0.0-alpha.1",
+  "description": "Faith v3 核心数据与能力服务",
+  "author": "Mueo <mueo@mueoo.com>",
+  "main": "lib/index.js",
+  "module": "lib/index.mjs",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "assets"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "watch": "tsup -w",
+    "test": "npm run build && node --test tests/*.test.cjs"
+  },
+  "peerDependencies": {
+    "koishi": "^4.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
+  },
+  "license": "GPL-3.0-or-later",
+  "koishi": {
+    "name": "Faith Core",
+    "description": {
+      "zh-CN": "Faith v3 的 UID、身份、数值、经济、物品、事务、Hook 与公共 API。"
+    },
+    "services": {
+      "required": [
+        "database"
+      ]
+    }
+  }
+}

@@ -1,0 +1,170 @@
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const core = require('../lib/index.js')
+
+test('KeyedLock serializes the same key', async () => {
+  const locks = new core.KeyedLockService()
+  const order = []
+  await Promise.all([
+    locks.run('uid:1', async () => { order.push(1); await new Promise((r) => setTimeout(r, 10)); order.push(2) }),
+    locks.run('uid:1', async () => { order.push(3) }),
+  ])
+  assert.deepEqual(order, [1, 2, 3])
+  assert.equal(locks.size, 0)
+})
+
+test('Faith transactions reuse nested context and serialize SQLite roots', async () => {
+  let begins = 0, active = 0, maximum = 0
+  const database = {
+    drivers: [{ constructor: { name: 'sqlite' } }],
+    transact: async (task) => {
+      begins++; active++; maximum = Math.max(maximum, active)
+      try { await new Promise((resolve) => setTimeout(resolve, 5)); return await task(database) }
+      finally { active-- }
+    },
+  }
+  const service = new core.FaithTransactionService({ database })
+  await Promise.all([
+    service.run(async () => service.run(async () => 'nested')),
+    service.run(async () => 'parallel'),
+  ])
+  assert.equal(begins, 2)
+  assert.equal(maximum, 1)
+})
+
+test('item levels have stable rarity ordering', () => {
+  const levels = new core.FaithItemLevelRegistry()
+  levels.registerMany(core.CORE_ITEM_LEVELS, { owner: 'core' })
+  assert.ok(levels.compare('彩蛋', 'SSS') > 0)
+  assert.ok(levels.compare('SP', 'D') > 0)
+  assert.throws(() => levels.register({ id: 'D', name: 'D', rank: 1 }, { owner: 'other', replace: true }))
+})
+
+test('business records reject prototype pollution and circular data', () => {
+  assert.throws(() => core.cloneBusinessRecord(JSON.parse('{"__proto__":{"polluted":true}}')))
+  const value = {}; value.self = value
+  assert.throws(() => core.cloneBusinessRecord(value))
+})
+
+test('game day follows v2 07:30 Asia/Shanghai boundary', () => {
+  const ctx = { logger: () => ({ error() {} }) }
+  const service = new core.FaithGameDayService(ctx, {
+    enabled: true, timezone: 'Asia/Shanghai', rolloverHour: 7, rolloverMinute: 30,
+    checkIntervalSeconds: 60, lockTimeoutSeconds: 1800, runOnStartup: false,
+  }, {}, new core.KeyedLockService(), {})
+  assert.equal(service.getDate(new Date('2026-09-02T23:29:00.000Z')), '2026-09-02')
+  assert.equal(service.getDate(new Date('2026-09-02T23:30:00.000Z')), '2026-09-03')
+})
+
+test('Core errors retain stable machine-readable codes', () => {
+  const error = new core.FaithCoreError('INSUFFICIENT_BALANCE')
+  assert.equal(error.code, 'INSUFFICIENT_BALANCE')
+  assert.equal(error.name, 'FaithCoreError')
+})
+
+test('identity normalization enforces QQ Bot group scope', () => {
+  assert.throws(() => core.normalizeIdentity({ adapter: 'qqbot', type: 'qqbot_member_openid', value: 'member', scope: 'group_chat' }))
+  assert.deepEqual(core.normalizeIdentity({ adapter: 'qqbot', type: 'qqbot_member_openid', value: 'member', scope: 'group_chat', scopeValue: 'group' }), {
+    adapter: 'qqbot', type: 'qqbot_member_openid', value: 'member', scope: 'group_chat', scopeValue: 'group',
+  })
+  assert.throws(() => core.normalizeIdentity({ adapter: 'onebot', type: 'qq_account', value: '1', scope: 'private_chat' }))
+})
+
+test('bonus providers run concurrently while preserving priority order', async () => {
+  const hooks = new core.FaithHooksService({ logger: () => ({ error() {} }) })
+  const users = { require: async () => ({ uid: 10000000, faiths: [] }) }
+  const bonuses = new core.FaithBonusService(users, hooks)
+  bonuses.registerProvider(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); return { source: 'slow', type: 'gold', fixedBonus: 1 } }, { id: 'slow', priority: 1 })
+  bonuses.registerProvider(async () => ({ source: 'fast', type: 'gold', fixedBonus: 2 }), { id: 'fast', priority: 2 })
+  const result = await bonuses.calculate({ uid: 10000000, type: 'gold', baseValue: 10 })
+  assert.deepEqual(result.contributions.map((item) => item.source), ['slow', 'fast'])
+  assert.equal(result.finalValue, 13)
+})
+
+test('hooks preserve priority and once semantics', async () => {
+  const hooks = new core.FaithHooksService({ logger: () => ({ error() {} }) })
+  const order = []
+  hooks.on('test/event', () => order.push(2), { priority: 2, once: true })
+  hooks.on('test/event', () => order.push(1), { priority: 1 })
+  await hooks.emit('test/event', {})
+  await hooks.emit('test/event', {})
+  assert.deepEqual(order, [1, 2, 1])
+})
+
+test('critical hooks propagate failures', async () => {
+  const hooks = new core.FaithHooksService({ logger: () => ({ error() {} }) })
+  hooks.on('test/critical', () => { throw new Error('boom') })
+  await assert.rejects(() => hooks.emitStrict('test/critical', {}), AggregateError)
+})
+
+test('persistent registries allow an identical same-owner reload', () => {
+  const levels = new core.FaithItemLevelRegistry()
+  const level = { id: 'X', name: 'X', rank: 1 }
+  assert.equal(levels.register(level, { owner: 'business:test' }), levels.register(level, { owner: 'business:test' }))
+  const professions = new core.FaithProfessionRegistry()
+  const profession = { id: 'test', name: 'Test', type: 'base', faith: 'Test' }
+  assert.equal(professions.register(profession, { owner: 'business:test' }), professions.register(profession, { owner: 'business:test' }))
+})
+
+test('inventory mutation rejects shortage and item cap with stable codes', () => {
+  const item = { item_id: 'test', name: 'Test', type: 'item', level: 'D', description: '', max_quantity: 2, marketable: false, price: 0, obtainable: true }
+  assert.equal(assertCode(() => core.createInventoryMutation(10000000, item, 0, -1)), 'ITEM_INSUFFICIENT')
+  assert.equal(assertCode(() => core.createInventoryMutation(10000000, item, 1, 3)), 'ITEM_LIMIT_EXCEEDED')
+})
+
+test('bulk operations require an idempotent operation id and report skips', async () => {
+  const users = { list: async ({ offset }) => offset ? [] : [{ uid: 10000000 }, { uid: 10000001 }] }
+  const items = { require: () => ({ item_id: 'gift' }) }
+  const transactions = {
+    run: async (_business, uid, task) => {
+      if (uid === 10000001) throw new core.FaithCoreError('IDEMPOTENCY_CONFLICT')
+      return task({ users: { change: async () => ({}) }, items: { give: async () => ({}) } })
+    },
+  }
+  let operation
+  const ctx = { database: {
+    get: async () => operation ? [operation] : [],
+    create: async (_table, value) => { operation = value; return value },
+  } }
+  const bulk = new core.FaithBulkOperationsService(ctx, users, items, transactions)
+  await assert.rejects(() => bulk.incrementValuesForAll({ gold: 1 }, { operationId: '' }))
+  const result = await bulk.incrementValuesForAll({ gold: 1 }, { operationId: 'event-2026' })
+  assert.deepEqual({ total: result.total, succeeded: result.succeeded, skipped: result.skipped }, { total: 2, succeeded: 1, skipped: 1 })
+})
+
+test('economy distinguishes bonus rewards from fixed payments and refunds', async () => {
+  let user = { uid: 10000000, gold: 100, ascension_score: 50 }
+  const scope = { users: {
+    get: async () => ({ ...user }),
+    change: async (delta) => { user = { ...user, gold: user.gold + (delta.gold || 0), ascension_score: user.ascension_score + (delta.ascension_score || 0) }; return { ...user } },
+  } }
+  const transactions = { run: async (_business, _uid, task) => task(scope) }
+  const users = { require: async () => ({ ...user }) }
+  const calculate = async ({ uid, type, baseValue, source }) => ({ uid, type, baseValue, source, multiplier: 2, fixedBonus: 0, finalValue: baseValue * 2, contributions: [], failures: [] })
+  const bonuses = { calculate, calculateForUser: async (_user, request) => calculate(request) }
+  const economy = new core.FaithEconomyService(users, bonuses, transactions)
+  await economy.pay(user.uid, { gold: 10, ascension_score: 5 }, { source: 'shop.buy' })
+  assert.deepEqual({ gold: user.gold, score: user.ascension_score }, { gold: 90, score: 45 })
+  const reward = await economy.reward(user.uid, { gold: 10 }, { source: 'prayer.daily' })
+  assert.equal(reward.applied.gold, 20)
+  assert.equal(user.gold, 110)
+  await economy.refund(user.uid, { gold: 10 }, { source: 'game.refund' })
+  assert.equal(user.gold, 120)
+  await assert.rejects(() => economy.pay(user.uid, { gold: 999 }, { source: 'shop.buy' }), (error) => error.code === 'INSUFFICIENT_BALANCE')
+  await assert.rejects(() => economy.reward(user.uid, { gold: 1 }, { source: 'invalid' }), (error) => error.code === 'VALIDATION_FAILED')
+})
+
+test('core config normalization validates and freezes reload snapshots', () => {
+  const config = core.normalizeCoreConfig({
+    registration: { initialGold: 300 },
+    gameDay: { enabled: true, timezone: 'Asia/Shanghai', rolloverHour: 7, rolloverMinute: 30, checkIntervalSeconds: 60, lockTimeoutSeconds: 1800, runOnStartup: true },
+  })
+  assert.equal(Object.isFrozen(config), true)
+  assert.equal(Object.isFrozen(config.gameDay), true)
+  assert.throws(() => core.normalizeCoreConfig({ ...config, gameDay: { ...config.gameDay, timezone: 'invalid/timezone' } }), (error) => error.code === 'VALIDATION_FAILED')
+})
+
+function assertCode(callback) {
+  try { callback() } catch (error) { return error.code }
+  assert.fail('expected callback to throw')
+}
