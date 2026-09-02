@@ -115,7 +115,18 @@ export interface FaithItemDefinition {
   price: number;
   obtainable: boolean;
   actions?: string[];
+  openable?: FaithOpenableDefinition;
 }
+
+export interface FaithOpenableDefinition {
+  guaranteed?: FaithOpenableCurrencyReward;
+  independentDrops?: readonly FaithOpenableIndependentDrop[];
+  randomDrop?: { goldRange?: readonly [number, number]; itemCount?: number; itemPool: readonly FaithOpenablePoolEntry[]; };
+}
+export interface FaithOpenableCurrencyReward { gold?: number; ascension_score?: number; audience_score?: number; }
+export interface FaithOpenableIndependentDrop { item: string; chance: number; quantity?: number; }
+export interface FaithOpenablePoolEntry { level: string; weight: number; }
+export interface FaithOpenResult { currencies: Readonly<Required<FaithOpenableCurrencyReward>>; items: Readonly<Record<string, number>>; }
 
 export interface ItemQuery {
   type?: string;

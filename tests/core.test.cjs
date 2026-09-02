@@ -164,6 +164,18 @@ test('core config normalization validates and freezes reload snapshots', () => {
   assert.throws(() => core.normalizeCoreConfig({ ...config, gameDay: { ...config.gameDay, timezone: 'invalid/timezone' } }), (error) => error.code === 'VALIDATION_FAILED')
 })
 
+test('openable items are classified as items and roll only obtainable non-openable rewards', () => {
+  const service = new core.FaithItemsService({}, {}, {}, {}, {}, {})
+  service.registerMany(core.CORE_OPENABLE_ITEMS, { owner: 'core' })
+  service.register({ item_id: 'reward_d', name: 'D 奖励', type: '道具', level: 'D', description: '', max_quantity: 0, marketable: true, price: 1, obtainable: true }, { owner: 'core' })
+  const container = service.require('破烂的背包')
+  assert.equal(container.type, '物品')
+  assert.equal(service.isOpenable(container.item_id), true)
+  const result = service.rollOpenable(container.item_id, () => 0)
+  assert.equal(result.currencies.gold, 20)
+  assert.deepEqual(result.items, { reward_d: 1 })
+})
+
 function assertCode(callback) {
   try { callback() } catch (error) { return error.code }
   assert.fail('expected callback to throw')

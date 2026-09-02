@@ -8,7 +8,7 @@ import type { FaithIdentityService } from "./identity";
 import type { FaithRegistryService } from "../faith";
 import type { FaithEffectsService, CreateFaithEffect } from "../effects";
 import type { BonusCalculation, BonusProvider, BonusProviderOptions, BonusRequest } from "../bonus";
-import type { FaithCoreUserData, FaithDefinition, FaithEffectRow, FaithItemDefinition, FaithItemLevelDefinition, FaithProfessionDefinition, IdentityInput, InventoryItem, InventoryMutation, InventoryStack, ItemQuery, UserValueDelta } from "../types";
+import type { FaithCoreUserData, FaithDefinition, FaithEffectRow, FaithItemDefinition, FaithItemLevelDefinition, FaithOpenResult, FaithProfessionDefinition, IdentityInput, InventoryItem, InventoryMutation, InventoryStack, ItemQuery, UserValueDelta } from "../types";
 import type { FaithDisposable } from "../lifecycle";
 import type { CoreDatabase } from "./transaction";
 import type { FaithBulkOperationsService, FaithBulkOptions, FaithBulkResult } from "./bulk";
@@ -32,6 +32,8 @@ export interface FaithBusinessItemsApi {
   list(query?: ItemQuery): Readonly<FaithItemDefinition>[];
   obtainable(): Readonly<FaithItemDefinition>[];
   marketable(): Readonly<FaithItemDefinition>[];
+  isOpenable(itemIdOrName: string): boolean;
+  rollOpenable(itemIdOrName: string, random?: () => number): FaithOpenResult;
   getInventoryEntries(uid: number): Promise<InventoryItem[]>;
   getInventoryStacks(uid: number): Promise<InventoryStack[]>;
   getInventorySnapshot(uid: number): Promise<Readonly<Record<string, InventoryItem>>>;
@@ -126,6 +128,7 @@ export function createBusinessItemsApi(service: FaithItemsService, business: str
     resolve: (key: string) => service.resolve(key), require: (key: string) => service.require(key),
     has: (key: string) => service.has(key), all: () => service.all(), list: (query?: ItemQuery) => service.list(query),
     obtainable: () => service.obtainable(), marketable: () => service.marketable(),
+    isOpenable: (key: string) => service.isOpenable(key), rollOpenable: (key: string, random?: () => number) => service.rollOpenable(key, random),
     getInventoryEntries: (uid: number) => service.getInventoryEntries(uid), getInventoryStacks: (uid: number) => service.getInventoryStacks(uid),
     getInventorySnapshot: (uid: number) => service.getInventorySnapshot(uid),
     listInventory: (uid: number, options?: { type?: string; level?: string; offset?: number; limit?: number }) => service.listInventory(uid, options),

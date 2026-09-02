@@ -4,7 +4,7 @@ import { KeyedLockService } from "../lock";
 import { FaithTransactionService } from "../services/transaction";
 import { FaithUsersService } from "../services/users";
 import type { FaithAuditService } from "../services/audit";
-import type { InventoryItem, InventoryMutation, InventoryStack } from "../types";
+import type { FaithOpenResult, InventoryItem, InventoryMutation, InventoryStack } from "../types";
 import type { FaithItemDefinition } from "../types";
 import { FaithCoreError } from "../errors";
 import { FaithItemRegistry } from "./registry";
@@ -18,6 +18,7 @@ import {
 
 export class FaithItemsService extends FaithItemRegistry {
   private repository = new FaithInventoryRepository();
+  private lootPools = new Map<string, readonly Readonly<FaithItemDefinition>[]>()
   readonly levels = new FaithItemLevelRegistry();
 
   constructor(
@@ -31,11 +32,34 @@ export class FaithItemsService extends FaithItemRegistry {
 
   override register(input: FaithItemDefinition, options: { replace?: boolean; owner?: string } = {}) {
     this.levels.require(input.level);
-    return super.register(input, options);
+    const result = super.register(input, options); this.lootPools.clear(); return result;
   }
   override registerMany(inputs: readonly FaithItemDefinition[], options: { replace?: boolean; owner?: string } = {}) {
     for (const input of inputs) this.levels.require(input.level);
-    return super.registerMany(inputs, options);
+    const result = super.registerMany(inputs, options); this.lootPools.clear(); return result;
+  }
+
+  isOpenable(itemIdOrName: string) { return !!this.resolve(itemIdOrName)?.openable; }
+
+  rollOpenable(itemIdOrName: string, random: () => number = Math.random): FaithOpenResult {
+    const item = this.require(itemIdOrName), rule = item.openable;
+    if (!rule) throw new FaithCoreError("VALIDATION_FAILED", `物品 ${item.name} 不能打开`, { itemId: item.item_id });
+    const currencies = { gold: 0, ascension_score: 0, audience_score: 0, ...(rule.guaranteed ?? {}) };
+    const rewards: Record<string, number> = {};
+    for (const drop of rule.independentDrops ?? []) if (safeRandom(random) < drop.chance) add(rewards, this.require(drop.item).item_id, drop.quantity ?? 1);
+    const randomized = rule.randomDrop;
+    if (randomized?.goldRange) currencies.gold += randomInt(random, randomized.goldRange[0], randomized.goldRange[1]);
+    for (let count = 0; count < (randomized?.itemCount ?? 1); count++) {
+      if (!randomized) break;
+      const level = weightedPick(randomized.itemPool, random);
+      let pool = this.lootPools.get(level);
+      if (!pool) {
+        pool = Object.freeze(this.list({ level, obtainable: true }).filter((candidate) => !candidate.openable));
+        this.lootPools.set(level, pool);
+      }
+      if (pool.length) add(rewards, pool[Math.floor(safeRandom(random) * pool.length)].item_id, 1);
+    }
+    return Object.freeze({ currencies: Object.freeze(currencies), items: Object.freeze(rewards) });
   }
 
   async unregister(itemId: string, owner?: string) {
@@ -45,7 +69,7 @@ export class FaithItemsService extends FaithItemRegistry {
     if (await this.repository.hasAny(this.ctx.database, itemId)) {
       throw new Error(`物品 ${itemId} 仍存在于用户背包，不能取消注册`);
     }
-    return this.removeDefinition(itemId);
+    const removed = this.removeDefinition(itemId); if (removed) this.lootPools.clear(); return removed;
   }
 
   async removeOwner(owner: string) {
@@ -209,3 +233,8 @@ export class FaithItemsService extends FaithItemRegistry {
     for (const mutation of mutations) await this.hooks.emit("inventory/changed", mutation);
   }
 }
+
+function safeRandom(random: () => number) { const value = random(); if (!Number.isFinite(value) || value < 0 || value >= 1) throw new FaithCoreError("VALIDATION_FAILED", "随机数生成器必须返回 [0, 1) 范围内的有限数值"); return value; }
+function randomInt(random: () => number, min: number, max: number) { return Math.floor(safeRandom(random) * (max - min + 1)) + min; }
+function weightedPick(entries: readonly { level: string; weight: number }[], random: () => number) { const total = entries.reduce((sum, entry) => sum + entry.weight, 0); let value = safeRandom(random) * total; for (const entry of entries) { value -= entry.weight; if (value < 0) return entry.level; } return entries[entries.length - 1].level; }
+function add(target: Record<string, number>, item: string, quantity: number) { target[item] = (target[item] ?? 0) + quantity; }

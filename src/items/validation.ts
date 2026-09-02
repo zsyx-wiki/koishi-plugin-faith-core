@@ -17,6 +17,23 @@ export function validateItemDefinition(item: FaithItemDefinition) {
   if (item.actions && !item.actions.every((action) => typeof action === "string")) {
     throw new Error(`物品 ${item.item_id} 的 actions 必须是字符串数组`);
   }
+  if (item.openable) validateOpenable(item);
+}
+
+function validateOpenable(item: FaithItemDefinition) {
+  const rule = item.openable!;
+  if (!rule.guaranteed && !rule.independentDrops?.length && !rule.randomDrop) throw new Error(`可开启物品 ${item.item_id} 没有掉落规则`);
+  for (const [key, value] of Object.entries(rule.guaranteed ?? {})) {
+    if (!["gold", "ascension_score", "audience_score"].includes(key) || !Number.isSafeInteger(value) || (value as number) < 0) throw new Error(`物品 ${item.item_id} 的固定奖励无效：${key}`);
+  }
+  for (const drop of rule.independentDrops ?? []) {
+    if (!drop.item.trim() || !Number.isFinite(drop.chance) || drop.chance < 0 || drop.chance > 1 || !Number.isSafeInteger(drop.quantity ?? 1) || (drop.quantity ?? 1) < 1) throw new Error(`物品 ${item.item_id} 的独立掉落配置无效`);
+  }
+  if (!rule.randomDrop) return;
+  const { goldRange, itemCount = 1, itemPool } = rule.randomDrop;
+  if (goldRange && (!Number.isSafeInteger(goldRange[0]) || !Number.isSafeInteger(goldRange[1]) || goldRange[0] < 0 || goldRange[1] < goldRange[0])) throw new Error(`物品 ${item.item_id} 的金币区间无效`);
+  if (!Number.isSafeInteger(itemCount) || itemCount < 0 || itemCount > 100) throw new Error(`物品 ${item.item_id} 的随机物品数量无效`);
+  if (itemCount > 0 && (!itemPool.length || itemPool.some((entry) => !entry.level.trim() || !Number.isFinite(entry.weight) || entry.weight <= 0))) throw new Error(`物品 ${item.item_id} 的随机池无效`);
 }
 
 export function assertPositiveQuantity(quantity: number) {

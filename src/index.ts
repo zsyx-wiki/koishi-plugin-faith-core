@@ -31,6 +31,7 @@ export { normalizeCoreConfig } from "./config-validation";
 export * from "./database";
 export * from "./data/items";
 export * from "./data/easterEggs";
+export * from "./data/openable-items";
 export * from "./items";
 export * from "./hooks";
 export * from "./bonus";

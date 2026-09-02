@@ -1,6 +1,7 @@
 import { Context, Service } from "koishi";
 import { CORE_EASTER_EGGS } from "./data/easterEggs";
 import { CORE_ITEMS } from "./data/items";
+import { CORE_OPENABLE_ITEMS } from "./data/openable-items";
 import { registerBusinessModel, type BusinessModelFields } from "./database";
 import { FaithHooksService } from "./hooks";
 import { FaithBonusService } from "./bonus";
@@ -170,6 +171,7 @@ export class FaithCoreService extends Service {
     this.items.registerMany([
       ...(CORE_ITEMS as unknown as FaithItemDefinition[]),
       ...(CORE_EASTER_EGGS as unknown as FaithItemDefinition[]),
+      ...(CORE_OPENABLE_ITEMS as unknown as FaithItemDefinition[]),
     ], { owner: "core" });
   }
 

@@ -15,6 +15,7 @@ export class FaithItemRegistry {
     const item = Object.freeze({
       ...input,
       actions: input.actions ? Object.freeze([...input.actions]) as unknown as string[] : undefined,
+      openable: input.openable ? freezeOpenable(input.openable) : undefined,
     });
     this.definitions.set(item.item_id, item);
     this.itemIdsByName.set(item.name, item.item_id);
@@ -92,6 +93,18 @@ export class FaithItemRegistry {
       throw new Error(`物品名称已被其他 ID 使用：${item.name}`);
     }
   }
+}
+
+function freezeOpenable(value: NonNullable<FaithItemDefinition["openable"]>) {
+  return Object.freeze({
+    guaranteed: value.guaranteed ? Object.freeze({ ...value.guaranteed }) : undefined,
+    independentDrops: value.independentDrops ? Object.freeze(value.independentDrops.map((entry) => Object.freeze({ ...entry }))) : undefined,
+    randomDrop: value.randomDrop ? Object.freeze({
+      ...value.randomDrop,
+      goldRange: value.randomDrop.goldRange ? Object.freeze([value.randomDrop.goldRange[0], value.randomDrop.goldRange[1]]) as readonly [number, number] : undefined,
+      itemPool: Object.freeze(value.randomDrop.itemPool.map((entry) => Object.freeze({ ...entry }))),
+    }) : undefined,
+  });
 }
 
 function sameDefinition(current: Readonly<FaithItemDefinition>, input: FaithItemDefinition) {

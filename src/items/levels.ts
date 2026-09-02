@@ -25,5 +25,5 @@ export class FaithItemLevelRegistry {
 export const CORE_ITEM_LEVELS: readonly FaithItemLevelDefinition[] = [
   { id: "D", name: "D", rank: 10 }, { id: "C", name: "C", rank: 20 }, { id: "B", name: "B", rank: 30 },
   { id: "A", name: "A", rank: 40 }, { id: "S", name: "S", rank: 50 }, { id: "SS", name: "SS", rank: 60 },
-  { id: "SSS", name: "SSS", rank: 70 }, { id: "SP", name: "SP", rank: 80 }, { id: "彩蛋", name: "彩蛋", rank: 90 },
+  { id: "SSS", name: "SSS", rank: 70 }, { id: "SP", name: "SP", rank: 80 }, { id: "LT", name: "限时", rank: 85 }, { id: "彩蛋", name: "彩蛋", rank: 90 },
 ];
