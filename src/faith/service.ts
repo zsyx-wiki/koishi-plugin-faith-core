@@ -33,13 +33,14 @@ export class FaithRegistryService extends FaithRegistryServiceBase {
 
   async registerUser(identity: IdentityInput, faithName: string, initialGold = this.defaultInitialGold) {
     const faith = this.require(faithName.trim());
-    if (!Number.isFinite(initialGold) || initialGold < 0) throw new Error("初始金币无效");
+    if (!Number.isSafeInteger(initialGold) || initialGold < 0) throw new Error("初始金币必须是非负安全整数");
     let believerCount: number | undefined;
     const uid = await this.identities.createUser(identity, async (targetUid, database) => {
       const user = await this.users.require(targetUid, database);
       if (user.faiths[0]) throw new Error(`用户已经注册信仰：${user.faiths[0]}`);
       const transactionId = this.audit ? await this.audit.begin(database, { source: "faith.register" }) : null;
-      await database.set("faith_core_users_data", { uid: targetUid }, { faiths: normalizeFaiths([faith.name]), gold: initialGold });
+      const write = await database.set("faith_core_users_data", { uid: targetUid, gold: user.gold }, { faiths: normalizeFaiths([faith.name]), gold: initialGold, updated_at: new Date() });
+      if (write.matched !== 1) throw new FaithCoreError("TRANSACTION_CONFLICT", "注册数据已被其他实例修改，请重试", { uid: targetUid });
       if (transactionId && initialGold) await this.audit!.entry(database, transactionId, targetUid, "gold", user.gold, initialGold);
       believerCount = await this.adjustBelieverCount(database, faith.name, 1);
     });
@@ -66,7 +67,8 @@ export class FaithRegistryService extends FaithRegistryServiceBase {
   async setPrayerWord(name: string, word: string) {
     const faith = this.requireDynamic(name), value = word.trim();
     if (value.length > 1024) throw new Error("祷词不能超过 1024 字符");
-    await this.ctx.database.set("faith_core_faiths", { name: faith.name }, { prayer_word: value });
+    const write = await this.ctx.database.set("faith_core_faiths", { name: faith.name }, { prayer_word: value });
+    if (write.matched !== 1) throw new FaithCoreError("DATA_INTEGRITY_ERROR", `动态信仰数据库记录不存在：${faith.name}`);
     const updated = this.register({ ...faith, prayer_word: value || undefined }, { override: true });
     await this.hooks.emit("faith/updated", updated); return updated;
   }
@@ -74,8 +76,15 @@ export class FaithRegistryService extends FaithRegistryServiceBase {
   async setCustomProfession(name: string, type: string, professionName: string) {
     const faith = this.requireDynamic(name), custom = { ...(faith.custom_professions ?? {}), [type.trim()]: professionName.trim() };
     const definition = { id: professionName.trim(), name: professionName.trim(), type: type.trim(), faith: faith.name, source: `faith:${faith.name}` };
-    this.professions.register(definition, { owner: `faith:${faith.name}`, override: !!this.professions.get(definition.id) });
-    await this.ctx.database.set("faith_core_faiths", { name: faith.name }, { custom_professions: custom });
+    const owner = `faith:${faith.name}`, previous = this.professions.get(definition.id);
+    this.professions.register(definition, { owner, override: !!previous });
+    try {
+      const write = await this.ctx.database.set("faith_core_faiths", { name: faith.name }, { custom_professions: custom });
+      if (write.matched !== 1) throw new FaithCoreError("DATA_INTEGRITY_ERROR", `动态信仰数据库记录不存在：${faith.name}`);
+    } catch (error) {
+      if (previous) this.professions.register(previous, { owner, override: true }); else this.professions.unregister(definition.id, owner);
+      throw error;
+    }
     const updated = this.register({ ...faith, custom_professions: custom }, { override: true });
     await this.hooks.emit("faith/updated", updated); return updated;
   }

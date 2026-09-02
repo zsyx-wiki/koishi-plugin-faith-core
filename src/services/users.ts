@@ -56,7 +56,8 @@ export class FaithUsersService {
     if (!["active", "disabled", "closed"].includes(status) || reason.length > 255) throw new FaithCoreError("VALIDATION_FAILED", "用户状态无效");
     return this.locks.run(`uid:${uid}`, () => this.transactions.run(async (database) => {
       await this.require(uid, database, { allowInactive: true });
-      await database.set("faith_core_users_data", { uid }, { status, status_reason: reason, updated_at: new Date() });
+      const result = await database.set("faith_core_users_data", { uid }, { status, status_reason: reason, updated_at: new Date() });
+      if (result.matched !== 1) throw new FaithCoreError("TRANSACTION_CONFLICT", "用户状态已被其他实例修改，请重试", { uid });
       return this.require(uid, database, { allowInactive: true });
     }));
   }
@@ -122,7 +123,7 @@ export class FaithUsersService {
       if (oldFaith === next) throw new Error(`当前信仰已经是：${next}`);
       const faiths = normalizeFaiths([next, ...before.faiths.slice(1).filter((item) => item !== next)]);
       const after: FaithCoreUserData = { ...before, faiths, abandon_count: before.abandon_count + 1 };
-      const { uid: _uid, ...patch } = after;
+      const patch = { faiths, abandon_count: after.abandon_count, updated_at: new Date() };
       await assertUserWrite(database, { uid, faiths: before.faiths, abandon_count: before.abandon_count }, patch);
       const oldCount = this.faithRegistry ? await this.faithRegistry.adjustBelieverCount(database, oldFaith, -1) : undefined;
       const newCount = this.faithRegistry ? await this.faithRegistry.adjustBelieverCount(database, next, 1) : undefined;
@@ -153,7 +154,7 @@ export class FaithUsersService {
         validateUserValues(after);
         if (after.gold < 0) throw new FaithCoreError("INSUFFICIENT_BALANCE", "金币余额不足", { uid });
         if (after.abandon_count < 0 || !Number.isSafeInteger(after.abandon_count)) throw new Error("弃誓次数不能为负数且必须是安全整数");
-        const { uid: _uid, ...patch } = after;
+        const patch = Object.fromEntries(Object.keys(applied).map((key) => [key, after[key as keyof UserValueDelta]]));
         await assertUserWrite(database, userValueQuery(before), { ...patch, updated_at: new Date() });
         for (const key of Object.keys(applied) as (keyof UserValueDelta)[]) if (applied[key]) await this.audit.entry(database, transactionId, uid, key, Number(before[key]), Number(after[key]));
         return { before, after };

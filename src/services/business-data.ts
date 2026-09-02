@@ -55,6 +55,7 @@ export class FaithBusinessDataService {
         });
         if (result.matched !== 1) throw new FaithCoreError("TRANSACTION_CONFLICT", "业务数据已被其他实例修改，请重试", { uid, business });
         const [updated] = await database.get("faith_core_business", { id: row.id });
+        if (!updated) throw new FaithCoreError("DATA_INTEGRITY_ERROR", "业务数据更新后记录丢失", { uid, business });
         return updated;
       }));
   }

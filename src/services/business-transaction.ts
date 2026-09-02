@@ -141,7 +141,7 @@ export class FaithBusinessTransactionService {
         if (after.gold < 0) throw new FaithCoreError("INSUFFICIENT_BALANCE", "金币余额不足", { uid });
         if (after.abandon_count < 0 || !Number.isSafeInteger(after.abandon_count)) throw new Error("弃誓次数不能为负数且必须是安全整数");
         ensureActive();
-        const { uid: _uid, ...patch } = after;
+        const patch = Object.fromEntries(entries.map(([key]) => [key, after[key as keyof UserValueDelta]]));
         await assertUserWrite(database, valueQuery(before), patch);
         userChanges.push({ before, after, delta: { ...delta } });
         return after;
@@ -257,6 +257,7 @@ export class FaithBusinessTransactionService {
         });
         if (result.matched !== 1) throw new FaithCoreError("TRANSACTION_CONFLICT", "业务数据已被其他实例修改，请重试", { uid, business });
         const [updated] = await database.get("faith_core_business", { id: row.id });
+        if (!updated) throw new FaithCoreError("DATA_INTEGRITY_ERROR", "业务数据更新后记录丢失", { uid, business });
         return updated;
       },
     });

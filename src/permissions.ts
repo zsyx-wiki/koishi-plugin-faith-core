@@ -38,6 +38,7 @@ export class FaithPermissionsService {
     const scope = options.scope ?? "global", scopeValue = options.scopeValue ?? "";
     validateScope(scope, scopeValue);
     if (options.expiresAt && !Number.isFinite(options.expiresAt.getTime())) throw new FaithCoreError("VALIDATION_FAILED", "权限到期时间无效");
+    if (options.grantedBy !== undefined && options.grantedBy !== 0) assertUid(options.grantedBy);
     await this.ctx.database.upsert("faith_core_permission_grants", [{ uid, permission, scope, scope_value: scopeValue, granted_by: options.grantedBy ?? 0, expires_at: options.expiresAt ?? null, created_at: new Date() }], ["uid", "permission", "scope", "scope_value"]);
   }
   revoke(uid: number, permission: string, scope = "global", scopeValue = "") { assertUid(uid); validatePermission(permission); validateScope(scope, scopeValue); return this.ctx.database.remove("faith_core_permission_grants", { uid, permission, scope, scope_value: scopeValue }); }
