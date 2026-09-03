@@ -14,6 +14,7 @@ import { normalizeFaiths } from "./users";
 import type { CoreDatabase, FaithTransactionService } from "./transaction";
 import type { FaithAuditService, FaithTransactionOptions } from "./audit";
 import type { FaithCurrency, FaithMoney, FaithWallet } from "../economy";
+import { atomicTable, type AtomicTableDefinition, type FaithAtomicTableApi } from "./atomic-table";
 
 export interface FaithAtomicUserApi {
   get(): Promise<FaithCoreUserData>;
@@ -37,6 +38,7 @@ export interface FaithAtomicBusinessDataApi {
 }
 
 export interface FaithAtomicScope {
+  readonly table: FaithAtomicTableApi;
   readonly uid: number;
   readonly users: FaithAtomicUserApi;
   readonly items: FaithAtomicItemsApi;
@@ -69,12 +71,13 @@ export class FaithBusinessTransactionService {
     private faiths: FaithRegistryService,
   ) {}
 
-  async run<T>(business: string, uid: number, task: (scope: FaithAtomicScope) => Promise<T>, options: FaithTransactionOptions = {}): Promise<T> {
-    return this.runMany(business, [uid], async (scopes) => task(scopes.get(uid)!), options);
+  async run<T>(business: string, uid: number, task: (scope: FaithAtomicScope) => Promise<T>, options: FaithTransactionOptions = {}, table?: AtomicTableDefinition): Promise<T> {
+    return this.runMany(business, [uid], async (scopes) => task(scopes.get(uid)!), options, table);
   }
 
-  async runMany<T>(business: string, uids: readonly number[], task: (scopes: ReadonlyMap<number, FaithAtomicScope>) => Promise<T>, options: FaithTransactionOptions = {}): Promise<T> {
+  async runMany<T>(business: string, uids: readonly number[], task: (scopes: ReadonlyMap<number, FaithAtomicScope>) => Promise<T>, options: FaithTransactionOptions = {}, table?: AtomicTableDefinition): Promise<T> {
     assertBusinessName(business);
+    if (table && table.name !== `faith_business_${business}`) throw new Error("原子事务不能访问其他业务表");
     const uniqueUids = [...new Set(uids)].sort((a, b) => a - b);
     if (!uniqueUids.length || uniqueUids.length > 32) throw new Error("原子事务 UID 数量必须是 1-32");
     uniqueUids.forEach(assertUid);
@@ -90,7 +93,7 @@ export class FaithBusinessTransactionService {
         const transactionId = await this.audit.begin(database, { ...options, business });
         const state = { active: true };
         try {
-          const scopes = new Map(uniqueUids.map((uid) => [uid, this.createScope(database, business, uid, mutations, userChanges, postEvents, state, afterCommit, afterRollback)]));
+          const scopes = new Map(uniqueUids.map((uid) => [uid, this.createScope(database, business, uid, mutations, userChanges, postEvents, state, afterCommit, afterRollback, table)]));
           const output = await task(scopes);
           for (const change of userChanges) for (const [key, delta] of Object.entries(change.delta)) if (delta) await this.audit.entry(database, transactionId, change.after.uid, key, Number(change.before[key as keyof FaithCoreUserData]), Number(change.after[key as keyof FaithCoreUserData]));
           for (const mutation of mutations) await this.audit.entry(database, transactionId, mutation.uid, `item:${mutation.item_id}`, mutation.before, mutation.after);
@@ -120,6 +123,7 @@ export class FaithBusinessTransactionService {
     state: { active: boolean },
     afterCommit: Array<() => void | Promise<void>>,
     afterRollback: Array<(error: unknown) => void | Promise<void>>,
+    table?: AtomicTableDefinition,
   ): FaithAtomicScope {
     const ensureActive = () => {
       if (!state.active) throw new Error("原子事务作用域已经结束");
@@ -262,7 +266,7 @@ export class FaithBusinessTransactionService {
       },
     });
     return Object.freeze({
-      uid, users, items, economy, data,
+      uid, users, items, economy, data, table: atomicTable(database, table, ensureActive),
       afterCommit(callback: () => void | Promise<void>) { ensureActive(); if (typeof callback !== "function") throw new TypeError("afterCommit 必须是函数"); afterCommit.push(callback); },
       afterRollback(callback: (error: unknown) => void | Promise<void>) { ensureActive(); if (typeof callback !== "function") throw new TypeError("afterRollback 必须是函数"); afterRollback.push(callback); },
     });

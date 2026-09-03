@@ -95,6 +95,7 @@ export class FaithCoreService extends Service {
   readonly bulk: FaithBulkOperationsService;
   readonly economy: FaithEconomyService;
   private readonly businessApis;
+  private readonly businessTableDefinitions = new Map<string, string>();
 
   declare config: Readonly<FaithCoreConfig>;
 
@@ -202,11 +203,19 @@ export class FaithCoreService extends Service {
   listIdentities(uid: number) { return this.identities.list(uid); }
   unbindIdentity(uid: number, identity: IdentityInput) { return this.identities.unbind(uid, identity); }
   private registerBusinessTable(name: string, fields: BusinessModelFields, config = {}) {
+    const definition = JSON.stringify([fields, config]);
+    const existing = this.businessTableDefinitions.get(name);
+    if (existing !== undefined) {
+      if (existing !== definition) throw new Error(`业务 ${name} 不能在运行中改变表结构`);
+      return `faith_business_${name}`;
+    }
     const allowed = ["created", "initializing", "initialized", "readying"];
     if (!allowed.includes(this.lifecycle.state)) {
       throw new Error(`业务表只能在 init/ready 初始化阶段注册，当前状态：${this.lifecycle.state}`);
     }
-    return registerBusinessModel(this.ctx, name, fields, config);
+    const table = registerBusinessModel(this.ctx, name, fields, config);
+    this.businessTableDefinitions.set(name, definition);
+    return table;
   }
   createBusinessScope(name: string) {
     return new FaithBusinessCoreScope(

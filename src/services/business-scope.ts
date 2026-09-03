@@ -78,9 +78,9 @@ export class FaithBusinessCoreScope {
     this.gameDay = Object.freeze({ currentDate: (now?: Date) => gameDay.getDate(now) });
     this.transaction = Object.freeze({
       run: <T>(uid: number, task: (scope: FaithAtomicScope) => Promise<T>, options?: import("./audit").FaithTransactionOptions) =>
-        transactions.run(this.name, uid, task, options),
+        transactions.run(this.name, uid, task, options, this.atomicTableDefinition()),
       runMany: <T>(uids: readonly number[], task: (scopes: ReadonlyMap<number, FaithAtomicScope>) => Promise<T>, options?: import("./audit").FaithTransactionOptions) =>
-        transactions.runMany(this.name, uids, task, options),
+        transactions.runMany(this.name, uids, task, options, this.atomicTableDefinition()),
     });
     this.#businessData = businessData;
     this.#registerModel = registerModel;
@@ -114,6 +114,8 @@ export class FaithBusinessCoreScope {
       apis.permissions.removeOwner(`business:${name}`);
     });
   }
+
+  private atomicTableDefinition() { return this.#tableName ? { name: this.#tableName, primary: [...this.#tablePrimary] } : undefined; }
 
   registerTable(fields: BusinessModelFields, config: Partial<Model.Config> = {}) {
     if (this.#tableName) throw new Error(`业务 ${this.name} 只能注册一张独立业务表`);

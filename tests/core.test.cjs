@@ -2,6 +2,32 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const core = require('../lib/index.js')
 
+test('atomic business tables stay owner-scoped and reject primary-key changes and escaped scopes', async () => {
+  const calls = []
+  const database = {
+    get: async (table) => { calls.push(table); return [] },
+    create: async (table, row) => { calls.push(table); return row },
+    set: async (table) => { calls.push(table); return { matched: 1 } },
+    remove: async (table) => { calls.push(table); return {} },
+  }
+  const service = new core.FaithBusinessTransactionService(
+    { run: async (task) => task(database) }, new core.KeyedLockService(),
+    { emit: async () => {} }, { require: async (uid) => ({ uid }) }, {}, {},
+    { begin: async () => 'tx', entry: async () => {} }, {},
+  )
+  let saved
+  await service.run('rooms', 10000000, async (scope) => {
+    saved = scope
+    await scope.table.create({ key: 'room' })
+    await scope.table.set({ key: 'room' }, { version: 2 })
+    assert.throws(() => scope.table.set({ key: 'room' }, { key: 'other' }))
+    assert.throws(() => scope.table.remove({}))
+  }, {}, { name: 'faith_business_rooms', primary: ['key'] })
+  assert.deepEqual(calls, ['faith_business_rooms', 'faith_business_rooms'])
+  assert.throws(() => saved.table.get())
+  await assert.rejects(() => service.run('rooms', 10000000, async () => {}, {}, { name: 'faith_core_users', primary: ['id'] }))
+})
+
 test('KeyedLock serializes the same key', async () => {
   const locks = new core.KeyedLockService()
   const order = []
