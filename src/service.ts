@@ -202,7 +202,7 @@ export class FaithCoreService extends Service {
   /** 管理接口不向 Adapter 门面暴露；解绑只移除映射，不级联删除用户资产。 */
   listIdentities(uid: number) { return this.identities.list(uid); }
   unbindIdentity(uid: number, identity: IdentityInput) { return this.identities.unbind(uid, identity); }
-  private registerBusinessTable(name: string, fields: BusinessModelFields, config = {}) {
+  private registerBusinessTable(name: string, fields: BusinessModelFields, config = {}, businessInitializing = false) {
     const definition = JSON.stringify([fields, config]);
     const existing = this.businessTableDefinitions.get(name);
     if (existing !== undefined) {
@@ -210,14 +210,14 @@ export class FaithCoreService extends Service {
       return `faith_business_${name}`;
     }
     const allowed = ["created", "initializing", "initialized", "readying"];
-    if (!allowed.includes(this.lifecycle.state)) {
+    if (!allowed.includes(this.lifecycle.state) && !(businessInitializing && this.lifecycle.state === "ready")) {
       throw new Error(`业务表只能在 init/ready 初始化阶段注册，当前状态：${this.lifecycle.state}`);
     }
     const table = registerBusinessModel(this.ctx, name, fields, config);
     this.businessTableDefinitions.set(name, definition);
     return table;
   }
-  createBusinessScope(name: string) {
+  createBusinessScope(name: string, options: { canRegisterTable?: () => boolean } = {}) {
     return new FaithBusinessCoreScope(
       this.lifecycle,
       name,
@@ -228,7 +228,11 @@ export class FaithCoreService extends Service {
       this.businessData,
       this.businessTransactions,
       this.gameDay,
-      (business, fields, config) => this.registerBusinessTable(business, fields, config),
+      (business, fields, config) => {
+        const initializing = options.canRegisterTable?.() === true;
+        if (options.canRegisterTable && !initializing) throw new Error(`业务 ${business} 只能在自身 init/ready 初始化阶段注册表`);
+        return this.registerBusinessTable(business, fields, config, initializing);
+      },
       this.ctx.database,
     );
   }

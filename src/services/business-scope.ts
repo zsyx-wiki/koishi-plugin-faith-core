@@ -118,6 +118,7 @@ export class FaithBusinessCoreScope {
   private atomicTableDefinition() { return this.#tableName ? { name: this.#tableName, primary: [...this.#tablePrimary] } : undefined; }
 
   registerTable(fields: BusinessModelFields, config: Partial<Model.Config> = {}) {
+    if (this.lifecycle.disposed) throw new Error(`业务 ${this.name} 的作用域已卸载`);
     if (this.#tableName) throw new Error(`业务 ${this.name} 只能注册一张独立业务表`);
     const primary = config.primary ?? "id";
     this.#tablePrimary = new Set(Array.isArray(primary) ? primary : [primary]);
