@@ -3,7 +3,7 @@ import { Config as ConfigSchema, type Config as CoreConfig } from "../config";
 import { registerCoreModels } from "./database";
 import { CORE_SERVICE_ORDER, FaithCoreService } from "./service";
 
-export const name = "faith-core";
+export const name = "cocofaith-core";
 export const inject = ["database"] as const;
 export const Config = ConfigSchema;
 export type Config = CoreConfig;
@@ -15,7 +15,7 @@ declare module "koishi" {
 }
 
 export async function apply(ctx: Context, config: Config) {
-  const logger = ctx.logger("faith-core");
+  const logger = ctx.logger("cocofaith-core");
   const startedAt = Date.now();
   registerCoreModels(ctx);
   logger.debug("数据库模型已注册");
@@ -49,3 +49,4 @@ export * from "./errors";
 export * from "./effects";
 export * from "./integrity";
 export * from "./health";
+export * from "./version";

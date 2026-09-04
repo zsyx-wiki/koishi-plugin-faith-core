@@ -58,7 +58,7 @@ export interface FaithAdapterIdentityApi {
 }
 
 /**
- * Faith Core 的稳定公共门面。具体实现按职责拆入各 service，门面只负责编排、
+ * CoCoFaith Core 的稳定公共门面。具体实现按职责拆入各 service，门面只负责编排、
  * 生命周期和少量向后兼容委托。
  */
 export class FaithCoreService extends Service {

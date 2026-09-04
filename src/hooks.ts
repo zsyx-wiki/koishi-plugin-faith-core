@@ -28,7 +28,7 @@ export class FaithHooksService {
   private orderedHandlers = new Map<string, readonly HookEntry[]>();
   private order = 0;
   private readonly logger;
-  constructor(ctx: Context) { this.logger = ctx.logger("faith-core-hooks"); }
+  constructor(ctx: Context) { this.logger = ctx.logger("cocofaith-core-hooks"); }
 
   onCore<K extends FaithCoreHookName>(event: K, handler: FaithHookHandler<FaithCoreHookMap[K]>, options: FaithHookOptions = {}) {
     return this.on(event, handler, options);

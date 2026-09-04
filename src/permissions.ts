@@ -10,7 +10,7 @@ interface PermissionEntry { policy: PermissionPolicy; owner: string; }
 export class FaithPermissionsService {
   private policies = new Map<string, Set<PermissionEntry>>();
   private readonly logger;
-  constructor(private ctx: Context) { this.logger = ctx.logger("faith-core-permissions"); }
+  constructor(private ctx: Context) { this.logger = ctx.logger("cocofaith-core-permissions"); }
   register(permission: string, policy: PermissionPolicy, options: { owner?: string } = {}) {
     validatePermission(permission);
     if (typeof policy !== "function") throw new TypeError("权限策略必须是函数");

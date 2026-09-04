@@ -1,13 +1,13 @@
 <div align="center">
   <img src="./assets/coconut-water.png" width="168" alt="椰子水">
 
-  <h1>Faith Core</h1>
+  <h1>CoCoFaith Core</h1>
 
-  <p><strong>Faith v3 的数据与基础服务</strong></p>
+  <p><strong>CoCoFaith v3 的数据与基础服务</strong></p>
 
   <p>
     <img alt="Koishi" src="https://img.shields.io/badge/Koishi-4.16%2B-60a5fa?style=flat-square">
-    <img alt="Version" src="https://img.shields.io/badge/version-3.0.0--alpha.1-a78bfa?style=flat-square">
+    <img alt="Version" src="https://img.shields.io/badge/version-3.0.0--alpha.2-a78bfa?style=flat-square">
     <img alt="License" src="https://img.shields.io/badge/license-GPL--3.0-52b788?style=flat-square">
     <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178c6?style=flat-square&logo=typescript&logoColor=white">
   </p>

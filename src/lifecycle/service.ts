@@ -25,7 +25,7 @@ export class FaithLifecycleService {
   private readonly logger;
 
   constructor(private ctx: Context) {
-    this.logger = ctx.logger("faith-core-lifecycle");
+    this.logger = ctx.logger("cocofaith-core-lifecycle");
     ctx.on("ready", () => this.ready());
     ctx.on("dispose", () => this.dispose());
   }
@@ -57,7 +57,7 @@ export class FaithLifecycleService {
     options: LifecycleRegistrationOptions = {},
   ): FaithDisposable {
     if (typeof handler !== "function") throw new TypeError("生命周期处理器必须是函数");
-    if (this.state === "disposed" || this.state === "disposing") throw new Error("Faith Core 正在或已经卸载");
+    if (this.state === "disposed" || this.state === "disposing") throw new Error("CoCoFaith Core 正在或已经卸载");
     const registration: LifecycleRegistration = {
       id: ++this.sequence,
       handler,
@@ -84,7 +84,7 @@ export class FaithLifecycleService {
 
   scope(name: string) {
     if (!name.trim()) throw new Error("生命周期作用域名称不能为空");
-    if (this.state === "disposed" || this.state === "disposing") throw new Error("Faith Core 正在卸载");
+    if (this.state === "disposed" || this.state === "disposing") throw new Error("CoCoFaith Core 正在卸载");
     const scope = new FaithLifecycleScope(name, this);
     this.scopes.add(scope);
     scope.defer(() => { this.scopes.delete(scope); });
@@ -92,7 +92,7 @@ export class FaithLifecycleService {
   }
 
   defer(disposer: (() => void | Promise<void>) | FaithDisposable) {
-    if (this.state === "disposed" || this.state === "disposing") throw new Error("Faith Core 正在或已经卸载");
+    if (this.state === "disposed" || this.state === "disposing") throw new Error("CoCoFaith Core 正在或已经卸载");
     const resource = typeof disposer === "function" ? new CallbackDisposable(disposer) : disposer;
     this.resources.push(resource);
     return resource;
@@ -143,7 +143,7 @@ export class FaithLifecycleService {
     this.handlers.clear();
     this.state = "disposed";
     if (errors.length) {
-      const error = new AggregateError(errors, "Faith Core 生命周期卸载失败");
+      const error = new AggregateError(errors, "CoCoFaith Core 生命周期卸载失败");
       this.logger.error(error);
     }
   }

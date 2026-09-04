@@ -24,7 +24,7 @@ export class FaithGameDayService {
     private hooks: FaithHooksService,
   ) {
     assertConfig(configState);
-    this.logger = ctx.logger("faith-core-game-day");
+    this.logger = ctx.logger("cocofaith-core-game-day");
     this.formatter = createFormatter(configState.timezone);
   }
 
