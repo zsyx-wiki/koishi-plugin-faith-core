@@ -27,7 +27,7 @@ export async function apply(ctx: Context, config: Config) {
 }
 
 export * from "./types";
-export { normalizeCoreConfig } from "./config-validation";
+export { normalizeCoreConfig } from "./config/validation";
 export * from "./database";
 export * from "./data/items";
 export * from "./data/easterEggs";

@@ -1,6 +1,6 @@
 import type { FaithBonusService } from "../bonus";
 import { FaithCoreError } from "../errors";
-import type { FaithBusinessTransactionService } from "../services/business-transaction";
+import type { FaithBusinessTransactionService } from "../services/transaction";
 import type { FaithUsersService } from "../services/users";
 import type { FaithCoreUserData, UserValueDelta } from "../types";
 import { cloneBusinessRecord } from "../services/validation";

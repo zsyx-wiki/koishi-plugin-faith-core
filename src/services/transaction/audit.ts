@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { FaithCoreLedgerEntry, FaithCoreTransactionRow } from "../types";
-import { FaithCoreError } from "../errors";
-import type { CoreDatabase } from "./transaction";
-import { cloneBusinessRecord } from "./validation";
+import type { FaithCoreLedgerEntry, FaithCoreTransactionRow } from "../../types";
+import { FaithCoreError } from "../../errors";
+import type { CoreDatabase } from "./service";
+import { cloneBusinessRecord } from "../validation";
 
 export interface FaithTransactionOptions {
   idempotencyKey?: string; business?: string; source?: string; operatorUid?: number; metadata?: Record<string, unknown>;

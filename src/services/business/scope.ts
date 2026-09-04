@@ -1,14 +1,13 @@
 import { Model } from "koishi";
 import type { Database } from "koishi";
-import type { BusinessModelFields } from "../database";
-import type { FaithLifecycleScope } from "../lifecycle";
-import type { FaithLifecycleService } from "../lifecycle";
-import type { FaithBusinessDataService } from "./business-data";
-import { assertBusinessName } from "./validation";
-import { createBusinessBonusesApi, createBusinessBulkApi, createBusinessEconomyApi, createBusinessEffectsApi, createBusinessHooksApi, createBusinessItemsApi, createBusinessPermissionsApi, createBusinessProfessionsApi, type FaithBusinessBonusesApi, type FaithBusinessBulkApi, type FaithBusinessEconomyApi, type FaithBusinessEffectsApi, type FaithBusinessFaithsApi, type FaithBusinessHooksApi, type FaithBusinessIdentitiesApi, type FaithBusinessItemsApi, type FaithBusinessPermissionsApi, type FaithBusinessProfessionsApi, type FaithBusinessSharedApis, type FaithBusinessUsersApi } from "./business-scope-api";
-import type { FaithHooksService } from "../hooks";
-import type { FaithBonusService } from "../bonus";
-import type { FaithBusinessTransactionService, FaithAtomicScope } from "./business-transaction";
+import type { BusinessModelFields } from "../../database";
+import type { FaithLifecycleScope, FaithLifecycleService } from "../../lifecycle";
+import type { FaithBusinessDataService } from "./data";
+import { assertBusinessName } from "../validation";
+import { createBusinessBonusesApi, createBusinessBulkApi, createBusinessEconomyApi, createBusinessEffectsApi, createBusinessHooksApi, createBusinessItemsApi, createBusinessPermissionsApi, createBusinessProfessionsApi, type FaithBusinessBonusesApi, type FaithBusinessBulkApi, type FaithBusinessEconomyApi, type FaithBusinessEffectsApi, type FaithBusinessFaithsApi, type FaithBusinessHooksApi, type FaithBusinessIdentitiesApi, type FaithBusinessItemsApi, type FaithBusinessPermissionsApi, type FaithBusinessProfessionsApi, type FaithBusinessSharedApis, type FaithBusinessUsersApi } from "./scope-api";
+import type { FaithHooksService } from "../../hooks";
+import type { FaithBonusService } from "../../bonus";
+import type { FaithBusinessTransactionService, FaithAtomicScope } from "../transaction";
 
 export class FaithBusinessCoreScope {
   #businessData: FaithBusinessDataService;
@@ -51,10 +50,10 @@ export class FaithBusinessCoreScope {
     apis: FaithBusinessSharedApis,
     hooks: FaithHooksService,
     bonuses: FaithBonusService,
-    professions: import("../professions").FaithProfessionService,
+    professions: import("../../professions").FaithProfessionService,
     businessData: FaithBusinessDataService,
     transactions: FaithBusinessTransactionService,
-    gameDay: import("../lifecycle").FaithGameDayService,
+    gameDay: import("../../lifecycle").FaithGameDayService,
     registerModel: (
       name: string,
       fields: BusinessModelFields,
@@ -77,9 +76,9 @@ export class FaithBusinessCoreScope {
     this.economy = createBusinessEconomyApi(apis.economy, name);
     this.gameDay = Object.freeze({ currentDate: (now?: Date) => gameDay.getDate(now) });
     this.transaction = Object.freeze({
-      run: <T>(uid: number, task: (scope: FaithAtomicScope) => Promise<T>, options?: import("./audit").FaithTransactionOptions) =>
+      run: <T>(uid: number, task: (scope: FaithAtomicScope) => Promise<T>, options?: import("../transaction").FaithTransactionOptions) =>
         transactions.run(this.name, uid, task, options, this.atomicTableDefinition()),
-      runMany: <T>(uids: readonly number[], task: (scopes: ReadonlyMap<number, FaithAtomicScope>) => Promise<T>, options?: import("./audit").FaithTransactionOptions) =>
+      runMany: <T>(uids: readonly number[], task: (scopes: ReadonlyMap<number, FaithAtomicScope>) => Promise<T>, options?: import("../transaction").FaithTransactionOptions) =>
         transactions.runMany(this.name, uids, task, options, this.atomicTableDefinition()),
     });
     this.#businessData = businessData;
@@ -128,6 +127,6 @@ export class FaithBusinessCoreScope {
 }
 
 export interface FaithBusinessAtomicTransactionApi {
-  run<T>(uid: number, task: (scope: FaithAtomicScope) => Promise<T>, options?: import("./audit").FaithTransactionOptions): Promise<T>;
-  runMany<T>(uids: readonly number[], task: (scopes: ReadonlyMap<number, FaithAtomicScope>) => Promise<T>, options?: import("./audit").FaithTransactionOptions): Promise<T>;
+  run<T>(uid: number, task: (scope: FaithAtomicScope) => Promise<T>, options?: import("../transaction").FaithTransactionOptions): Promise<T>;
+  runMany<T>(uids: readonly number[], task: (scopes: ReadonlyMap<number, FaithAtomicScope>) => Promise<T>, options?: import("../transaction").FaithTransactionOptions): Promise<T>;
 }

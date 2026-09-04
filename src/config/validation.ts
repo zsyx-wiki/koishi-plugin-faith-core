@@ -1,5 +1,5 @@
-import { FaithCoreError } from "./errors";
-import type { FaithCoreConfig } from "./types";
+import { FaithCoreError } from "../errors";
+import type { FaithCoreConfig } from "../types";
 
 export function normalizeCoreConfig(input: FaithCoreConfig): Readonly<FaithCoreConfig> {
   if (!input || typeof input !== "object") throw new FaithCoreError("VALIDATION_FAILED", "Core 配置必须是对象");

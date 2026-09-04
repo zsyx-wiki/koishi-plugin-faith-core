@@ -1,12 +1,12 @@
 import { Context } from "koishi";
-import { FaithHooksService } from "../hooks";
-import { KeyedLockService } from "../lock";
-import type { IdentityInput } from "../types";
-import { normalizeIdentity } from "./identity-validation";
-import { FaithTransactionService, type CoreDatabase } from "./transaction";
+import { FaithHooksService } from "../../hooks";
+import { KeyedLockService } from "../../lock";
+import type { IdentityInput } from "../../types";
+import { normalizeIdentity } from "./validation";
+import { FaithTransactionService, type CoreDatabase } from "../transaction";
 import { FaithUidService } from "./uid";
-import { FaithUsersService } from "./users";
-import { FaithCoreError } from "../errors";
+import { FaithUsersService } from "../users";
+import { FaithCoreError } from "../../errors";
 
 export class FaithIdentityService {
   private resolved = new Map<string, number | null>();

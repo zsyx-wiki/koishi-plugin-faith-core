@@ -7,8 +7,8 @@ import type {
   FaithCoreUserIdentity,
   FaithCoreFaithRow,
   FaithCoreTransactionRow, FaithCoreLedgerEntry, FaithPermissionGrant, FaithEffectRow,
-} from "./types";
-import { assertBusinessName } from "./services/validation";
+} from "../types";
+import { assertBusinessName } from "../services/validation";
 
 export function registerCoreModels(ctx: Context) {
   ctx.model.extend("faith_core_users", {

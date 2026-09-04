@@ -8,7 +8,7 @@ import type { FaithIdentityService } from "../services/identity";
 import type { FaithUsersService } from "../services/users";
 import { normalizeFaiths } from "../services/users";
 import { FaithRegistryServiceBase } from "./registry";
-import type { FaithAuditService } from "../services/audit";
+import type { FaithAuditService } from "../services/transaction";
 import { FaithCoreError } from "../errors";
 
 export class FaithRegistryService extends FaithRegistryServiceBase {

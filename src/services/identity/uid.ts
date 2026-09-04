@@ -1,6 +1,6 @@
-import type { CoreDatabase } from "./transaction";
-import { UID_MAX, UID_MIN } from "../types";
-import { FaithCoreError } from "../errors";
+import type { CoreDatabase } from "../transaction";
+import { UID_MAX, UID_MIN } from "../../types";
+import { FaithCoreError } from "../../errors";
 
 export class FaithUidService {
   async initialize(database: CoreDatabase) {

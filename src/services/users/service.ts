@@ -1,13 +1,13 @@
 import { Context } from "koishi";
-import { FaithHooksService } from "../hooks";
-import { KeyedLockService } from "../lock";
-import type { FaithCoreUserData, UserValueDelta } from "../types";
-import { FaithTransactionService, type CoreDatabase } from "./transaction";
-import { assertUid } from "./validation";
-import type { FaithBonusService } from "../bonus";
-import { FaithCoreError } from "../errors";
-import type { FaithAuditService } from "./audit";
-import type { FaithRegistryService } from "../faith";
+import { FaithHooksService } from "../../hooks";
+import { KeyedLockService } from "../../lock";
+import type { FaithCoreUserData, UserValueDelta } from "../../types";
+import { FaithTransactionService, type CoreDatabase } from "../transaction";
+import { assertUid } from "../validation";
+import type { FaithBonusService } from "../../bonus";
+import { FaithCoreError } from "../../errors";
+import type { FaithAuditService } from "../transaction";
+import type { FaithRegistryService } from "../../faith";
 
 export interface UserChangeOptions { source?: string; isFixed?: boolean; metadata?: Readonly<Record<string, unknown>>; }
 

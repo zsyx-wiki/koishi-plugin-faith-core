@@ -1,5 +1,5 @@
 import { Context } from "koishi";
-import type { FaithHooksService } from "../hooks";
+import type { FaithHooksService } from "../../hooks";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 export type CoreDatabase = Context["database"];

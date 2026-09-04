@@ -27,6 +27,28 @@
 
 数据库表统一使用 `faith_core_` 前缀
 
+## 源码结构
+
+```text
+src/
+├── config/             # 配置校验与运行时快照
+├── database/           # Core 数据表定义与业务表注册
+├── data/               # 内置信仰、职业和物品数据
+├── lifecycle/          # 生命周期、游戏日与资源回收
+├── services/
+│   ├── identity/       # UID 分配、身份校验与绑定
+│   ├── users/          # 用户资料与批量操作
+│   ├── transaction/    # 原子事务、审计与幂等
+│   └── business/       # 提供给 Business 的受限 Scope
+├── bonus/ economy/     # 加成与经济能力
+├── faith/ professions/ # 信仰与职业注册服务
+├── items/              # 物品注册、背包与开启逻辑
+├── service.ts          # FaithCoreService 组装入口
+└── index.ts            # Koishi 插件入口与公开导出
+```
+
+根目录 `config.ts` 只负责 Koishi 配置 Schema；运行代码统一位于 `src`。`services` 内按数据边界划分，不再按新增顺序堆放文件。
+
 ## 配置
 
 配置定义集中在根目录 [`config.ts`](./config.ts)。默认游戏日为 `Asia/Shanghai 07:30`。

@@ -1,4 +1,4 @@
-import type { CoreDatabase } from "./transaction";
+import type { CoreDatabase } from "./service";
 
 export interface AtomicTableDefinition { name: string; primary: readonly string[]; }
 export interface FaithAtomicTableApi {

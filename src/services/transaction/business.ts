@@ -1,19 +1,18 @@
-import type { FaithHooksService } from "../hooks";
-import { FaithInventoryRepository } from "../items/repository";
-import { createInventoryMutation } from "../items/validation";
-import type { FaithItemsService } from "../items";
-import type { FaithProfessionService } from "../professions";
-import type { FaithRegistryService } from "../faith";
-import { FaithCoreError } from "../errors";
-import type { KeyedLockService } from "../lock";
-import type { FaithCoreBusinessData, FaithCoreUserData, InventoryMutation, UserValueDelta } from "../types";
-import { assertBusinessName, cloneBusinessRecord } from "./validation";
-import { assertUid } from "./validation";
-import type { FaithUsersService } from "./users";
-import { normalizeFaiths } from "./users";
-import type { CoreDatabase, FaithTransactionService } from "./transaction";
+import type { FaithHooksService } from "../../hooks";
+import { FaithInventoryRepository } from "../../items/repository";
+import { createInventoryMutation } from "../../items/validation";
+import type { FaithItemsService } from "../../items";
+import type { FaithProfessionService } from "../../professions";
+import type { FaithRegistryService } from "../../faith";
+import { FaithCoreError } from "../../errors";
+import type { KeyedLockService } from "../../lock";
+import type { FaithCoreBusinessData, FaithCoreUserData, InventoryMutation, UserValueDelta } from "../../types";
+import { assertBusinessName, cloneBusinessRecord, assertUid } from "../validation";
+import type { FaithUsersService } from "../users";
+import { normalizeFaiths } from "../users";
+import type { CoreDatabase, FaithTransactionService } from "./service";
 import type { FaithAuditService, FaithTransactionOptions } from "./audit";
-import type { FaithCurrency, FaithMoney, FaithWallet } from "../economy";
+import type { FaithCurrency, FaithMoney, FaithWallet } from "../../economy";
 import { atomicTable, type AtomicTableDefinition, type FaithAtomicTableApi } from "./atomic-table";
 
 export interface FaithAtomicUserApi {
@@ -26,7 +25,7 @@ export interface FaithAtomicUserApi {
 
 export interface FaithAtomicItemsApi {
   getQuantity(item: string): Promise<number>;
-  getStacks(): Promise<readonly import("../types").InventoryStack[]>;
+  getStacks(): Promise<readonly import("../../types").InventoryStack[]>;
   give(item: string, quantity?: number): Promise<InventoryMutation>;
   take(item: string, quantity?: number): Promise<InventoryMutation>;
   setQuantity(item: string, quantity: number): Promise<InventoryMutation>;

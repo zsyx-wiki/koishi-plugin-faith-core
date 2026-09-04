@@ -3,7 +3,7 @@ import { FaithHooksService } from "../hooks";
 import { KeyedLockService } from "../lock";
 import { FaithTransactionService } from "../services/transaction";
 import { FaithUsersService } from "../services/users";
-import type { FaithAuditService } from "../services/audit";
+import type { FaithAuditService } from "../services/transaction";
 import type { FaithOpenResult, InventoryItem, InventoryMutation, InventoryStack } from "../types";
 import type { FaithItemDefinition } from "../types";
 import { FaithCoreError } from "../errors";

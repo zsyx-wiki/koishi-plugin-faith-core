@@ -1,18 +1,18 @@
-import type { FaithHooksService } from "../hooks";
-import type { FaithBonusService } from "../bonus";
-import type { FaithItemsService } from "../items";
-import type { FaithPermissionsService } from "../permissions";
-import type { FaithUsersService } from "./users";
-import type { FaithProfessionService } from "../professions";
-import type { FaithIdentityService } from "./identity";
-import type { FaithRegistryService } from "../faith";
-import type { FaithEffectsService, CreateFaithEffect } from "../effects";
-import type { BonusCalculation, BonusProvider, BonusProviderOptions, BonusRequest } from "../bonus";
-import type { FaithCoreUserData, FaithDefinition, FaithEffectRow, FaithItemDefinition, FaithItemLevelDefinition, FaithOpenResult, FaithProfessionDefinition, IdentityInput, InventoryItem, InventoryMutation, InventoryStack, ItemQuery, UserValueDelta } from "../types";
-import type { FaithDisposable } from "../lifecycle";
-import type { CoreDatabase } from "./transaction";
-import type { FaithBulkOperationsService, FaithBulkOptions, FaithBulkResult } from "./bulk";
-import type { FaithEconomyService, FaithEconomyOptions, FaithMoney, FaithRewardOptions, FaithRewardPreview, FaithWallet, FaithEconomyChangeResult, FaithTransferResult } from "../economy";
+import type { FaithHooksService } from "../../hooks";
+import type { FaithBonusService } from "../../bonus";
+import type { FaithItemsService } from "../../items";
+import type { FaithPermissionsService } from "../../permissions";
+import type { FaithUsersService } from "../users";
+import type { FaithProfessionService } from "../../professions";
+import type { FaithIdentityService } from "../identity";
+import type { FaithRegistryService } from "../../faith";
+import type { FaithEffectsService, CreateFaithEffect } from "../../effects";
+import type { BonusCalculation, BonusProvider, BonusProviderOptions, BonusRequest } from "../../bonus";
+import type { FaithCoreUserData, FaithDefinition, FaithEffectRow, FaithItemDefinition, FaithItemLevelDefinition, FaithOpenResult, FaithProfessionDefinition, IdentityInput, InventoryItem, InventoryMutation, InventoryStack, ItemQuery, UserValueDelta } from "../../types";
+import type { FaithDisposable } from "../../lifecycle";
+import type { CoreDatabase } from "../transaction";
+import type { FaithBulkOperationsService, FaithBulkOptions, FaithBulkResult } from "../users";
+import type { FaithEconomyService, FaithEconomyOptions, FaithMoney, FaithRewardOptions, FaithRewardPreview, FaithWallet, FaithEconomyChangeResult, FaithTransferResult } from "../../economy";
 
 export interface FaithBusinessUsersApi {
   get(uid: number): Promise<FaithCoreUserData | null>;
@@ -52,7 +52,7 @@ export interface FaithBusinessItemLevelsApi {
   compare(a: string, b: string): number;
 }
 export interface FaithBusinessPermissionsApi {
-  register(permission: string, policy: import("../permissions").PermissionPolicy): FaithDisposable;
+  register(permission: string, policy: import("../../permissions").PermissionPolicy): FaithDisposable;
   check(uid: number, permission: string, data?: Record<string, unknown>, scope?: string, scopeValue?: string): Promise<boolean>;
 }
 export interface FaithBusinessProfessionsApi {
@@ -80,8 +80,8 @@ export interface FaithBusinessFaithsApi {
   setCustomProfession(name: string, type: string, professionName: string): Promise<Readonly<FaithDefinition>>;
 }
 export interface FaithBusinessHooksApi {
-  on<T, R = void>(event: string, handler: import("../hooks").FaithHookHandler<T, R>, options?: import("../hooks").FaithHookOptions): FaithDisposable;
-  emit<T>(event: string, payload: T): Promise<import("../hooks").FaithHookReport<void>>;
+  on<T, R = void>(event: string, handler: import("../../hooks").FaithHookHandler<T, R>, options?: import("../../hooks").FaithHookOptions): FaithDisposable;
+  emit<T>(event: string, payload: T): Promise<import("../../hooks").FaithHookReport<void>>;
 }
 export interface FaithBusinessBonusesApi {
   calculate(request: BonusRequest): Promise<BonusCalculation>;
@@ -121,8 +121,8 @@ export function createBusinessUsersApi(service: FaithUsersService): Readonly<Fai
 export function createBusinessItemsApi(service: FaithItemsService, business: string): Readonly<FaithBusinessItemsApi> {
   const owner = `business:${business}`;
   return Object.freeze({
-    register: (definition: import("../types").FaithItemDefinition, options: { replace?: boolean } = {}) => service.register(definition, { ...options, owner }),
-    registerMany: (definitions: readonly import("../types").FaithItemDefinition[], options: { replace?: boolean } = {}) => service.registerMany(definitions, { ...options, owner }),
+    register: (definition: import("../../types").FaithItemDefinition, options: { replace?: boolean } = {}) => service.register(definition, { ...options, owner }),
+    registerMany: (definitions: readonly import("../../types").FaithItemDefinition[], options: { replace?: boolean } = {}) => service.registerMany(definitions, { ...options, owner }),
     unregister: (itemId: string) => service.unregister(itemId, owner),
     get: (id: string) => service.get(id), getByName: (name: string) => service.getByName(name),
     resolve: (key: string) => service.resolve(key), require: (key: string) => service.require(key),
@@ -136,8 +136,8 @@ export function createBusinessItemsApi(service: FaithItemsService, business: str
     hasQuantity: (uid: number, item: string, quantity?: number) => service.hasQuantity(uid, item, quantity),
     canReceive: (uid: number, item: string, quantity?: number) => service.canReceive(uid, item, quantity),
     levels: Object.freeze({
-      register: (definition: import("../types").FaithItemLevelDefinition, options: { replace?: boolean } = {}) => service.levels.register(definition, { ...options, owner }),
-      registerMany: (definitions: readonly import("../types").FaithItemLevelDefinition[], options: { replace?: boolean } = {}) => service.levels.registerMany(definitions, { ...options, owner }),
+      register: (definition: import("../../types").FaithItemLevelDefinition, options: { replace?: boolean } = {}) => service.levels.register(definition, { ...options, owner }),
+      registerMany: (definitions: readonly import("../../types").FaithItemLevelDefinition[], options: { replace?: boolean } = {}) => service.levels.registerMany(definitions, { ...options, owner }),
       get: (id: string) => service.levels.get(id), require: (id: string) => service.levels.require(id),
       all: () => service.levels.all(), compare: (a: string, b: string) => service.levels.compare(a, b),
     }),
@@ -146,7 +146,7 @@ export function createBusinessItemsApi(service: FaithItemsService, business: str
 
 export function createBusinessPermissionsApi(service: FaithPermissionsService, business: string): Readonly<FaithBusinessPermissionsApi> {
   return Object.freeze({
-    register: (permission: string, policy: import("../permissions").PermissionPolicy) =>
+    register: (permission: string, policy: import("../../permissions").PermissionPolicy) =>
       service.register(permission, policy, { owner: `business:${business}` }),
     check: (uid, permission, data, scope, scopeValue) => service.check(uid, permission, data, scope, scopeValue),
   });
@@ -155,8 +155,8 @@ export function createBusinessPermissionsApi(service: FaithPermissionsService, b
 export function createBusinessProfessionsApi(service: FaithProfessionService, business: string): Readonly<FaithBusinessProfessionsApi> {
   const owner = `business:${business}`;
   return Object.freeze({
-    register: (definition: import("../types").FaithProfessionDefinition, options: { override?: boolean } = {}) => service.register(definition, { ...options, owner }),
-    registerMany: (definitions: readonly import("../types").FaithProfessionDefinition[], options: { override?: boolean } = {}) => service.registerMany(definitions, { ...options, owner }),
+    register: (definition: import("../../types").FaithProfessionDefinition, options: { override?: boolean } = {}) => service.register(definition, { ...options, owner }),
+    registerMany: (definitions: readonly import("../../types").FaithProfessionDefinition[], options: { override?: boolean } = {}) => service.registerMany(definitions, { ...options, owner }),
     unregister: (id: string) => service.unregister(id, owner),
     get: (id) => service.get(id), getByName: (name) => service.getByName(name), resolve: (key) => service.resolve(key), require: (key) => service.require(key),
     all: () => service.all(), list: (query) => service.list(query), getUserProfession: (uid) => service.getUserProfession(uid),
@@ -177,7 +177,7 @@ export function createBusinessFaithsApi(service: FaithRegistryService): Readonly
 
 export function createBusinessHooksApi(service: FaithHooksService, business: string): Readonly<FaithBusinessHooksApi> {
   return Object.freeze({
-    on: <T, R = void>(event: string, handler: import("../hooks").FaithHookHandler<T, R>, options: import("../hooks").FaithHookOptions = {}) => {
+    on: <T, R = void>(event: string, handler: import("../../hooks").FaithHookHandler<T, R>, options: import("../../hooks").FaithHookOptions = {}) => {
       if (RESTRICTED_BUSINESS_HOOKS.has(event)) throw new Error(`Business 不能订阅可改变 Core 控制流的 Hook：${event}`);
       return service.on(event, handler, { ...options, owner: `business:${business}` });
     },
@@ -191,7 +191,7 @@ export function createBusinessBonusesApi(service: FaithBonusService, business: s
   return Object.freeze({
     calculate: (request: BonusRequest) => service.calculate(request),
     overview: (uid: number, types?: readonly string[], baseValue?: number) => service.overview(uid, types, baseValue),
-    registerProvider: (provider: import("../bonus").BonusProvider, options: Omit<import("../bonus").BonusProviderOptions, "owner">) => service.registerProvider(provider, { ...options, owner: `business:${business}` }),
+    registerProvider: (provider: import("../../bonus").BonusProvider, options: Omit<import("../../bonus").BonusProviderOptions, "owner">) => service.registerProvider(provider, { ...options, owner: `business:${business}` }),
   });
 }
 export function createBusinessEffectsApi(service: FaithEffectsService, business: string): Readonly<FaithBusinessEffectsApi> {

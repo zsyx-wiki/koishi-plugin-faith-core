@@ -1,10 +1,10 @@
 import { Context } from "koishi";
-import type { FaithCoreBusinessData } from "../types";
-import { KeyedLockService } from "../lock";
-import { FaithTransactionService } from "./transaction";
-import { FaithUsersService } from "./users";
-import { assertBusinessName, cloneBusinessRecord } from "./validation";
-import { FaithCoreError } from "../errors";
+import type { FaithCoreBusinessData } from "../../types";
+import { KeyedLockService } from "../../lock";
+import { FaithTransactionService } from "../transaction";
+import { FaithUsersService } from "../users";
+import { assertBusinessName, cloneBusinessRecord } from "../validation";
+import { FaithCoreError } from "../../errors";
 
 export class FaithBusinessDataService {
   constructor(

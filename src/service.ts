@@ -17,7 +17,7 @@ import { FaithEffectsService } from "./effects";
 import { FaithIntegrityService } from "./integrity";
 import { FaithHealthService } from "./health";
 import { FaithEconomyService } from "./economy";
-import { normalizeCoreConfig } from "./config-validation";
+import { normalizeCoreConfig } from "./config/validation";
 import { FaithCoreError } from "./errors";
 import {
   FaithBusinessDataService,
