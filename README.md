@@ -15,43 +15,34 @@
 
 ---
 
-## 能力
+CoCoFaith Core 是 CoCoFaith v3 的基础插件，负责保存公共数据并向玩法层提供稳定服务。它不注册签到、抽卡、商店或游戏命令，具体玩法由 CoCoFaith Business 实现。
 
-- 永不复用的八位 UID 与多平台身份映射
-- 用户数值、信仰、职业和背包
-- 金币与登神分经济服务
-- 原子事务、幂等流水和 UID 锁
-- 物品、职业、信仰与加成注册表
-- 权限、持久效果、Hook 和游戏日生命周期
-- 面向 Business 的受限 Scope
+插件需要 Koishi 数据库服务。加载 CoCoFaith Business 和平台 Adapter 时，应将 Core 放在它们之前。
 
-数据库表统一使用 `faith_core_` 前缀
+## 基础能力
 
-## 源码结构
+- 使用独立 UID 处理玩家数据，可将不同平台身份绑定到同一名玩家
+- 保存玩家数值、信仰、职业、背包等公共数据
+- 提供金币、登神分等通用经济操作
+- 管理物品、信仰、职业和加成定义
+- 提供事务、权限、生命周期和 Hook
+- 为 Business 提供受限接口，避免玩法直接操作其他业务的数据
 
-```text
-src/
-├── config/             # 配置校验与运行时快照
-├── database/           # Core 数据表定义与业务表注册
-├── data/               # 内置信仰、职业和物品数据
-├── lifecycle/          # 生命周期、游戏日与资源回收
-├── services/
-│   ├── identity/       # UID 分配、身份校验与绑定
-│   ├── users/          # 用户资料与批量操作
-│   ├── transaction/    # 原子事务、审计与幂等
-│   └── business/       # 提供给 Business 的受限 Scope
-├── bonus/ economy/     # 加成与经济能力
-├── faith/ professions/ # 信仰与职业注册服务
-├── items/              # 物品注册、背包与开启逻辑
-├── service.ts          # FaithCoreService 组装入口
-└── index.ts            # Koishi 插件入口与公开导出
+Core 创建的数据库表统一使用 `faith_core_` 前缀。删除某个平台身份不会同时删除玩家资产，已经分配的 UID 也不会重新使用。
+
+## 安装
+
+```bash
+npm install @mueo/koishi-plugin-cocofaith-core
 ```
 
-根目录 `config.ts` 只负责 Koishi 配置 Schema；运行代码统一位于 `src`。`services` 内按数据边界划分，不再按新增顺序堆放文件。
+在 Koishi 中启用数据库插件后加载 CoCoFaith Core。
+
+仅使用 Core 不会产生面向玩家的命令。
 
 ## 配置
 
-配置定义集中在根目录 [`config.ts`](./config.ts)。默认游戏日为 `Asia/Shanghai 07:30`。
+默认以 `Asia/Shanghai` 时区的每日 `07:30` 作为游戏日分界。
 
 | 配置 | 默认值 | 说明 |
 | --- | ---: | --- |
@@ -63,22 +54,58 @@ src/
 | `gameDay.checkIntervalSeconds` | `60` | 检查间隔 |
 | `gameDay.lockTimeoutSeconds` | `1800` | 跨实例锁超时 |
 
-## 示例
+配置可以在运行时重新加载。涉及游戏日时间的修改会在 reload 后应用，不需要重启整个 Koishi 实例。
+
+## 开发
+
+插件通过 `faithCore` 服务提供能力
+
+普通玩法应依赖 CoCoFaith Business，并通过 Business Scope 使用 Core
+
+平台 Adapter 只使用身份解析与绑定接口。
 
 ```ts
 const uid = await ctx.faithCore.adapter.resolve(identity)
 const user = await ctx.faithCore.users.require(uid)
-const bag = await ctx.faithCore.items.getInventoryStacks(uid)
+const inventory = await ctx.faithCore.items.getInventory(uid)
 
 await ctx.faithCore.economy.reward(uid, { gold: 100 }, {
   source: 'signin.reward',
 })
 ```
 
-组合更新应使用 Business Scope 的 `transaction.run()`。SQLite 根事务串行执行，嵌套调用复用当前事务。
+需要同时修改数值、背包或业务数据时，应使用 Business Scope 提供的原子事务，不要拆成多次独立写入。
+
+示例：
+
+```ts
+await core.transaction.run(uid, async (tx) => {
+  const cost = { gold: 100 }
+  if (!await tx.economy.canAfford(cost)) {
+    throw new Error('金币不足')
+  }
+
+  const data = await tx.data.get()
+  const purchaseCount = Number(data.private.purchaseCount ?? 0)
+
+  await tx.economy.pay(cost)
+  await tx.items.give(rewardItemId, 1)
+  await tx.data.set({
+    private: {
+      ...data.private,
+      purchaseCount: purchaseCount + 1,
+    },
+  })
+}, {
+  source: 'shop.purchase',
+  idempotencyKey: `shop:${eventId}`,
+})
+```
 
 ```bash
 npm run build
 ```
 
-版本变化见 [CHANGELOG.md](./CHANGELOG.md)。
+数据结构和公开接口仍可能在正式版前调整，生产环境升级前请先备份数据库。
+
+版本记录见 [CHANGELOG.md](./CHANGELOG.md)。项目采用 GPL-3.0-or-later 许可证。
