@@ -28,6 +28,40 @@ test('atomic business tables stay owner-scoped and reject primary-key changes an
   await assert.rejects(() => service.run('rooms', 10000000, async () => {}, {}, { name: 'faith_core_users', primary: ['id'] }))
 })
 
+test('atomic user scope keeps its latest snapshot across consecutive writes', async () => {
+  let row = { uid: 10000000, faiths: ['旧信仰'], profession_id: '', gold: 100, ascension_score: 2000, audience_score: 10, audience_rank: 0, abandon_count: 0, status: 'active' }
+  const writeQueries = []
+  const database = {
+    get: async (table) => table === 'faith_core_users_data' ? [{ ...row, faiths: [...row.faiths] }] : [],
+    set: async (table, query, patch) => {
+      writeQueries.push(query)
+      if (table !== 'faith_core_users_data' || Object.entries(query).some(([key, value]) => JSON.stringify(row[key]) !== JSON.stringify(value))) return { matched: 0 }
+      row = { ...row, ...patch }; return { matched: 1 }
+    },
+    create: async (_table, value) => value,
+  }
+  const service = new core.FaithBusinessTransactionService(
+    { run: async (task) => task(database) }, new core.KeyedLockService(), { emit: async () => {} },
+    { require: async () => ({ ...row, faiths: [...row.faiths] }) }, {}, { require: () => ({}) },
+    { begin: async () => 'tx', entry: async () => {} },
+    { require: () => ({}), adjustBelieverCount: async () => 1, refreshCount: async () => {} },
+  )
+  await service.run('faith', row.uid, async (tx) => {
+    await tx.economy.pay({ ascension_score: 1200 })
+    await tx.users.change({ audience_score: -2 })
+    const after = await tx.users.abandonFaith('新信仰')
+    assert.equal(after.ascension_score, 800)
+    assert.equal(after.audience_score, 8)
+    assert.equal(after.abandon_count, 1)
+    const leaked = await tx.users.get(); leaked.faiths[0] = '篡改'
+    assert.equal((await tx.users.get()).faiths[0], '新信仰')
+  })
+  assert.equal(row.faiths[0], '新信仰')
+  assert.equal(row.ascension_score, 800)
+  assert.equal(row.audience_score, 8)
+  assert.ok(writeQueries.every((query) => !Object.hasOwn(query, 'faiths')), 'JSON 数组不能作为 Minato 乐观锁查询条件')
+})
+
 test('KeyedLock serializes the same key', async () => {
   const locks = new core.KeyedLockService()
   const order = []

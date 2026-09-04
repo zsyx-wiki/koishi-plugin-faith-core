@@ -96,7 +96,7 @@ export class FaithUsersService {
         if (oldFaith) oldCount = await this.faithRegistry.adjustBelieverCount(database, oldFaith, -1);
         if (newFaith) newCount = await this.faithRegistry.adjustBelieverCount(database, newFaith, 1);
       }
-      await assertUserWrite(database, { uid, faiths: before.faiths }, { faiths: normalized });
+      await assertUserWrite(database, userStateQuery(before), { faiths: normalized });
       return { before, after: { ...before, faiths: normalized }, oldCount, newCount };
     }));
     if (this.faithRegistry && result.before.faiths[0] !== result.after.faiths[0]) {
@@ -124,7 +124,7 @@ export class FaithUsersService {
       const faiths = normalizeFaiths([next, ...before.faiths.slice(1).filter((item) => item !== next)]);
       const after: FaithCoreUserData = { ...before, faiths, abandon_count: before.abandon_count + 1 };
       const patch = { faiths, abandon_count: after.abandon_count, updated_at: new Date() };
-      await assertUserWrite(database, { uid, faiths: before.faiths, abandon_count: before.abandon_count }, patch);
+      await assertUserWrite(database, userStateQuery(before), patch);
       const oldCount = this.faithRegistry ? await this.faithRegistry.adjustBelieverCount(database, oldFaith, -1) : undefined;
       const newCount = this.faithRegistry ? await this.faithRegistry.adjustBelieverCount(database, next, 1) : undefined;
       await this.audit.entry(database, transactionId, uid, "abandon_count", before.abandon_count, after.abandon_count);
@@ -191,6 +191,7 @@ export class FaithUsersService {
 
 const USER_VALUE_FIELDS = new Set(["gold", "ascension_score", "audience_score", "audience_rank", "abandon_count"]);
 function userValueQuery(user: FaithCoreUserData) { return { uid: user.uid, gold: user.gold, ascension_score: user.ascension_score, audience_score: user.audience_score, audience_rank: user.audience_rank, abandon_count: user.abandon_count }; }
+function userStateQuery(user: FaithCoreUserData) { return { ...userValueQuery(user), profession_id: user.profession_id, status: user.status, status_reason: user.status_reason }; }
 function validateUserValues(user: FaithCoreUserData) {
   for (const key of USER_VALUE_FIELDS) if (!Number.isFinite(user[key as keyof UserValueDelta]) || Math.abs(user[key as keyof UserValueDelta]) > Number.MAX_SAFE_INTEGER) throw new FaithCoreError("VALIDATION_FAILED", `数值运算溢出或超出安全范围：${key}`);
   if (!Number.isSafeInteger(user.audience_rank) || user.audience_rank < 0) throw new FaithCoreError("VALIDATION_FAILED", "觐见之梯必须是非负安全整数");

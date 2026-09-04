@@ -89,11 +89,12 @@ export class FaithBusinessTransactionService {
     let result: T;
     try {
       result = await this.locks.runMany(uniqueUids.map((uid) => `uid:${uid}`), () => this.transactions.run(async (database) => {
-        for (const uid of uniqueUids) await this.users.require(uid, database);
+        const userStates = new Map<number, { value: FaithCoreUserData }>();
+        for (const uid of uniqueUids) userStates.set(uid, { value: await this.users.require(uid, database) });
         const transactionId = await this.audit.begin(database, { ...options, business });
         const state = { active: true };
         try {
-          const scopes = new Map(uniqueUids.map((uid) => [uid, this.createScope(database, business, uid, mutations, userChanges, postEvents, state, afterCommit, afterRollback, table)]));
+          const scopes = new Map(uniqueUids.map((uid) => [uid, this.createScope(database, business, uid, userStates.get(uid)!, mutations, userChanges, postEvents, state, afterCommit, afterRollback, table)]));
           const output = await task(scopes);
           for (const change of userChanges) for (const [key, delta] of Object.entries(change.delta)) if (delta) await this.audit.entry(database, transactionId, change.after.uid, key, Number(change.before[key as keyof FaithCoreUserData]), Number(change.after[key as keyof FaithCoreUserData]));
           for (const mutation of mutations) await this.audit.entry(database, transactionId, mutation.uid, `item:${mutation.item_id}`, mutation.before, mutation.after);
@@ -117,6 +118,7 @@ export class FaithBusinessTransactionService {
     database: CoreDatabase,
     business: string,
     uid: number,
+    userState: { value: FaithCoreUserData },
     mutations: InventoryMutation[],
     userChanges: Array<{ before: FaithCoreUserData; after: FaithCoreUserData; delta: UserValueDelta }>,
     postEvents: Array<{ event: string; payload: unknown }>,
@@ -128,13 +130,15 @@ export class FaithBusinessTransactionService {
     const ensureActive = () => {
       if (!state.active) throw new Error("原子事务作用域已经结束");
     };
+    const currentUser = () => cloneAtomicUser(userState.value);
+    const commitUser = (value: FaithCoreUserData) => { userState.value = cloneAtomicUser(value); return currentUser(); };
     const users: FaithAtomicUserApi = Object.freeze({
-      get: () => { ensureActive(); return this.users.require(uid, database); },
+      get: async () => { ensureActive(); return currentUser(); },
       change: async (delta: UserValueDelta) => {
         ensureActive();
         const entries = Object.entries(delta);
         if (!entries.length) throw new Error("数值变更不能为空");
-        const before = await this.users.require(uid, database);
+        const before = currentUser();
         const after = { ...before };
         for (const [key, value] of entries) {
           if (!USER_VALUE_FIELDS.has(key)) throw new Error(`不允许修改用户数值字段：${key}`);
@@ -148,15 +152,15 @@ export class FaithBusinessTransactionService {
         const patch = Object.fromEntries(entries.map(([key]) => [key, after[key as keyof UserValueDelta]]));
         await assertUserWrite(database, valueQuery(before), patch);
         userChanges.push({ before, after, delta: { ...delta } });
-        return after;
+        return commitUser(after);
       },
       setFaiths: async (faiths: readonly string[]) => {
         ensureActive();
-        const normalized = normalizeFaiths(faiths), before = await this.users.require(uid, database);
+        const normalized = normalizeFaiths(faiths), before = currentUser();
         for (const faith of normalized) this.faiths.require(faith);
         ensureActive();
         const after = { ...before, faiths: normalized };
-        await assertUserWrite(database, { uid, faiths: before.faiths }, { faiths: normalized });
+        await assertUserWrite(database, userStateQuery(before), { faiths: normalized });
         const oldFaith = before.faiths[0] ?? null, newFaith = normalized[0] ?? null;
         if (oldFaith !== newFaith) {
           if (oldFaith) await this.faiths.adjustBelieverCount(database, oldFaith, -1);
@@ -164,33 +168,33 @@ export class FaithBusinessTransactionService {
           afterCommit.push(async () => { if (oldFaith) await this.faiths.refreshCount(oldFaith); if (newFaith) await this.faiths.refreshCount(newFaith); });
         }
         postEvents.push({ event: "user/faiths-changed", payload: { uid, before, after, oldFaith: before.faiths[0] ?? null, newFaith: normalized[0] ?? null } });
-        return after;
+        return commitUser(after);
       },
       abandonFaith: async (newFaith: string) => {
         ensureActive();
-        const before = await this.users.require(uid, database), normalized = normalizeFaiths([newFaith, ...before.faiths.slice(1).filter((item) => item !== newFaith.trim())]);
+        const before = currentUser(), normalized = normalizeFaiths([newFaith, ...before.faiths.slice(1).filter((item) => item !== newFaith.trim())]);
         this.faiths.require(newFaith);
         if (!before.faiths[0]) throw new Error("用户当前没有信仰");
         if (before.faiths[0] === normalized[0]) throw new Error(`当前信仰已经是：${normalized[0]}`);
         ensureActive();
         const after = { ...before, faiths: normalized, abandon_count: before.abandon_count + 1 };
-        await assertUserWrite(database, { uid, faiths: before.faiths, abandon_count: before.abandon_count }, { faiths: normalized, abandon_count: after.abandon_count });
+        await assertUserWrite(database, userStateQuery(before), { faiths: normalized, abandon_count: after.abandon_count });
         await this.faiths.adjustBelieverCount(database, before.faiths[0], -1);
         await this.faiths.adjustBelieverCount(database, normalized[0], 1);
         afterCommit.push(() => Promise.all([this.faiths.refreshCount(before.faiths[0]), this.faiths.refreshCount(normalized[0])]).then(() => undefined));
         const payload = { uid, before, after, oldFaith: before.faiths[0], newFaith: normalized[0] };
         postEvents.push({ event: "user/faiths-changed", payload }, { event: "user/faith-changed", payload });
         userChanges.push({ before, after, delta: { abandon_count: 1 } });
-        return after;
+        return commitUser(after);
       },
       setProfession: async (profession: string | null) => {
         ensureActive();
-        const target = profession === null ? null : this.professions.require(profession), before = await this.users.require(uid, database);
+        const target = profession === null ? null : this.professions.require(profession), before = currentUser();
         ensureActive();
         const after = { ...before, profession_id: target?.id ?? "" };
         await assertUserWrite(database, { uid, profession_id: before.profession_id }, { profession_id: after.profession_id });
         postEvents.push({ event: "user/profession-changed", payload: { uid, before, after, profession: target } });
-        return after;
+        return commitUser(after);
       },
     });
     const mutate = async (itemKey: string, calculate: (current: number) => number) => {
@@ -273,6 +277,10 @@ export class FaithBusinessTransactionService {
   }
 }
 
+function cloneAtomicUser(user: FaithCoreUserData): FaithCoreUserData {
+  return { ...user, faiths: [...user.faiths] };
+}
+
 const USER_VALUE_FIELDS = new Set(["gold", "ascension_score", "audience_score", "audience_rank", "abandon_count"]);
 const ECONOMY_CURRENCIES = ["gold", "ascension_score"] as const;
 function atomicMoney(input: Readonly<FaithMoney>): Readonly<FaithMoney> {
@@ -288,6 +296,7 @@ function atomicMoney(input: Readonly<FaithMoney>): Readonly<FaithMoney> {
 }
 function atomicWallet(user: FaithCoreUserData): FaithWallet { return Object.freeze({ uid: user.uid, gold: user.gold, ascension_score: user.ascension_score }); }
 function valueQuery(user: FaithCoreUserData) { return { uid: user.uid, gold: user.gold, ascension_score: user.ascension_score, audience_score: user.audience_score, audience_rank: user.audience_rank, abandon_count: user.abandon_count }; }
+function userStateQuery(user: FaithCoreUserData) { return { ...valueQuery(user), profession_id: user.profession_id, status: user.status, status_reason: user.status_reason }; }
 function validateValues(user: FaithCoreUserData) {
   for (const key of USER_VALUE_FIELDS) if (!Number.isFinite(user[key as keyof UserValueDelta]) || Math.abs(user[key as keyof UserValueDelta]) > Number.MAX_SAFE_INTEGER) throw new FaithCoreError("VALIDATION_FAILED", `数值运算溢出或超出安全范围：${key}`);
   if (!Number.isSafeInteger(user.audience_rank) || user.audience_rank < 0) throw new FaithCoreError("VALIDATION_FAILED", "觐见之梯必须是非负安全整数");
