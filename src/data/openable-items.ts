@@ -30,14 +30,14 @@ const genericItems = Object.entries(genericNames).flatMap(([level, names]) => na
 
 export const CORE_OPENABLE_ITEMS: readonly FaithItemDefinition[] = Object.freeze([
   ...genericItems,
-  item("faith_openable_2025_christmas", "2025圣诞礼盒", "LT", "一个装饰精美的礼盒，充满了节日的惊喜。", {
+  item("faith_openable_2025_christmas", "2025圣诞礼盒", "UR", "一个装饰精美的礼盒，充满了节日的惊喜。", {
     guaranteed: { ascension_score: 20, gold: 200 },
     independentDrops: [
       { item: "藏品柜", chance: .15 }, { item: "藏品柜", chance: .05 },
       { item: "保险柜", chance: .1 }, { item: "被遗忘的圣诞袜", chance: .01 },
     ],
   }),
-  item("faith_openable_mysterious_invitation", "神秘请柬", "LT", "一个神秘的请柬。", {
+  item("faith_openable_mysterious_invitation", "神秘请柬", "UR", "一个神秘的请柬。", {
     guaranteed: { ascension_score: 10, gold: 100 },
     independentDrops: [
       { item: "藏品柜", chance: .15 }, { item: "保险柜", chance: .2 },

@@ -3,6 +3,8 @@ import { validateItemDefinition } from "./validation";
 import { FaithCoreError } from "../errors";
 
 export class FaithItemRegistry {
+  private registryRevision = 0;
+  get revision() { return this.registryRevision; }
   protected readonly definitions = new Map<string, Readonly<FaithItemDefinition>>();
   protected readonly itemIdsByName = new Map<string, string>();
   protected readonly owners = new Map<string, string>();
@@ -18,6 +20,7 @@ export class FaithItemRegistry {
       openable: input.openable ? freezeOpenable(input.openable) : undefined,
     });
     this.definitions.set(item.item_id, item);
+    this.registryRevision++;
     this.itemIdsByName.set(item.name, item.item_id);
     this.owners.set(item.item_id, options.owner ?? "external");
     return item;
@@ -66,12 +69,14 @@ export class FaithItemRegistry {
     const item = this.definitions.get(itemId);
     if (!item) return false;
     this.definitions.delete(itemId);
+    this.registryRevision++;
     this.itemIdsByName.delete(item.name);
     this.owners.delete(itemId);
     return true;
   }
 
   clear() {
+    this.registryRevision++;
     this.definitions.clear();
     this.itemIdsByName.clear();
     this.owners.clear();

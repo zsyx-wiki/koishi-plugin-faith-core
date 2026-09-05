@@ -97,6 +97,12 @@ test('item levels have stable rarity ordering', () => {
   levels.registerMany(core.CORE_ITEM_LEVELS, { owner: 'core' })
   assert.ok(levels.compare('彩蛋', 'SSS') > 0)
   assert.ok(levels.compare('SP', 'D') > 0)
+  assert.ok(levels.compare('UR', '彩蛋') > 0)
+  assert.ok(levels.compare('URE', 'UR') > 0)
+  assert.ok(levels.compare('SP', 'URE') > 0)
+  assert.ok(levels.compare('EX', 'SP') > 0)
+  assert.equal(levels.get('LT'), undefined)
+  assert.throws(() => levels.require('LT'))
   assert.throws(() => levels.register({ id: 'D', name: 'D', rank: 1 }, { owner: 'other', replace: true }))
 })
 

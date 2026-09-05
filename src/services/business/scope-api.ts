@@ -15,11 +15,13 @@ import type { FaithBulkOperationsService, FaithBulkOptions, FaithBulkResult } fr
 import type { FaithEconomyService, FaithEconomyOptions, FaithMoney, FaithRewardOptions, FaithRewardPreview, FaithWallet, FaithEconomyChangeResult, FaithTransferResult } from "../../economy";
 
 export interface FaithBusinessUsersApi {
+  listUids(after?: number, limit?: number): Promise<number[]>;
   get(uid: number): Promise<FaithCoreUserData | null>;
   require(uid: number): Promise<FaithCoreUserData>;
   currentFaith(user: FaithCoreUserData): string | null;
 }
 export interface FaithBusinessItemsApi {
+  readonly revision: number;
   register(definition: FaithItemDefinition, options?: { replace?: boolean }): Readonly<FaithItemDefinition>;
   registerMany(definitions: readonly FaithItemDefinition[], options?: { replace?: boolean }): Readonly<FaithItemDefinition>[];
   unregister(itemId: string): Promise<boolean>;
@@ -112,6 +114,7 @@ export interface FaithBusinessEconomyApi {
 
 export function createBusinessUsersApi(service: FaithUsersService): Readonly<FaithBusinessUsersApi> {
   return Object.freeze({
+    listUids: (after?: number, limit?: number) => service.listUids(after, limit),
     get: (uid: number) => service.get(uid),
     require: (uid: number) => service.require(uid),
     currentFaith: (user: FaithCoreUserData) => service.currentFaith(user),
@@ -121,6 +124,7 @@ export function createBusinessUsersApi(service: FaithUsersService): Readonly<Fai
 export function createBusinessItemsApi(service: FaithItemsService, business: string): Readonly<FaithBusinessItemsApi> {
   const owner = `business:${business}`;
   return Object.freeze({
+    get revision() { return service.revision; },
     register: (definition: import("../../types").FaithItemDefinition, options: { replace?: boolean } = {}) => service.register(definition, { ...options, owner }),
     registerMany: (definitions: readonly import("../../types").FaithItemDefinition[], options: { replace?: boolean } = {}) => service.registerMany(definitions, { ...options, owner }),
     unregister: (itemId: string) => service.unregister(itemId, owner),

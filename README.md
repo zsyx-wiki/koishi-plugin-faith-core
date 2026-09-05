@@ -106,6 +106,18 @@ await core.transaction.run(uid, async (tx) => {
 npm run build
 ```
 
+### 内置数据
+
+内置物品、可开启物品和彩蛋分别维护在：
+
+- `src/data/items.ts`
+- `src/data/openable-items.ts`
+- `src/data/easterEggs.ts`
+
+这些文件直接使用 `FaithItemDefinition` 做 TypeScript 类型检查，新增条目时缺少字段、字段类型错误或使用未注册的稀有度都会在构建或启动阶段报错。标准稀有度顺序为 `D < C < B < A < S < SS < SSS < 彩蛋 < UR < URE < SP < EX`。`URE` 用于限定彩蛋；旧版 LT 物品在 v3 中统一按 UR 注册，LT 不再受支持。
+
+`item_id` 是持久化标识，发布后不要随名称一起修改。其他玩法注册物品时应使用自身的 Business Scope，不需要改动 Core 内置数据。
+
 数据结构和公开接口仍可能在正式版前调整，生产环境升级前请先备份数据库。
 
 版本记录见 [CHANGELOG.md](./CHANGELOG.md)。项目采用 GPL-3.0-or-later 许可证。
