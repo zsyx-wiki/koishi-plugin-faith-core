@@ -60,6 +60,20 @@ test('atomic user scope keeps its latest snapshot across consecutive writes', as
   assert.equal(row.ascension_score, 800)
   assert.equal(row.audience_score, 8)
   assert.ok(writeQueries.every((query) => !Object.hasOwn(query, 'faiths')), 'JSON 数组不能作为 Minato 乐观锁查询条件')
+  row.ascension_score = -5
+  await service.run('faith', row.uid, async (tx) => {
+    assert.equal(await tx.economy.canAfford({ gold: 10 }), true)
+    await tx.economy.pay({ gold: 10 })
+    await tx.users.change({ gold: -200, ascension_score: -10 })
+  })
+  assert.equal(row.gold, -110)
+  assert.equal(row.ascension_score, -15)
+  row.ascension_score = 100
+  await service.run('faith', row.uid, async (tx) => {
+    assert.equal(await tx.economy.canAfford({ ascension_score: 10 }), true)
+    await tx.economy.pay({ ascension_score: 10 })
+  })
+  assert.equal(row.ascension_score, 90)
 })
 
 test('KeyedLock serializes the same key', async () => {
@@ -187,15 +201,16 @@ test('bulk operations require an idempotent operation id and report skips', asyn
       return task({ users: { change: async () => ({}) }, items: { give: async () => ({}) } })
     },
   }
-  let operation
+  const operations = new Map()
   const ctx = { database: {
-    get: async () => operation ? [operation] : [],
-    create: async (_table, value) => { operation = value; return value },
+    get: async (_table, query) => operations.has(query.operation_id) ? [operations.get(query.operation_id)] : [],
+    create: async (_table, value) => { operations.set(value.operation_id, value); return value },
   } }
   const bulk = new core.FaithBulkOperationsService(ctx, users, items, transactions)
-  await assert.rejects(() => bulk.incrementValuesForAll({ gold: 1 }, { operationId: '' }))
-  const result = await bulk.incrementValuesForAll({ gold: 1 }, { operationId: 'event-2026' })
+  await assert.rejects(() => bulk.changeValuesForAll({ gold: 1 }, { operationId: '' }))
+  const result = await bulk.changeValuesForAll({ gold: 1 }, { operationId: 'event-2026' })
   assert.deepEqual({ total: result.total, succeeded: result.succeeded, skipped: result.skipped }, { total: 2, succeeded: 1, skipped: 1 })
+  await bulk.changeValuesForAll({ gold: -10, ascension_score: -5 }, { operationId: 'event-negative' })
 })
 
 test('economy distinguishes bonus rewards from fixed payments and refunds', async () => {
@@ -216,6 +231,15 @@ test('economy distinguishes bonus rewards from fixed payments and refunds', asyn
   assert.equal(user.gold, 110)
   await economy.refund(user.uid, { gold: 10 }, { source: 'game.refund' })
   assert.equal(user.gold, 120)
+  user.ascension_score = -10
+  assert.equal(await economy.canAfford(user.uid, { gold: 10 }), true)
+  await economy.pay(user.uid, { gold: 10 }, { source: 'shop.buy' })
+  assert.equal(user.gold, 110)
+  user.gold = -10
+  user.ascension_score = 20
+  assert.equal(await economy.canAfford(user.uid, { ascension_score: 5 }), true)
+  await economy.pay(user.uid, { ascension_score: 5 }, { source: 'shop.buy' })
+  assert.equal(user.ascension_score, 15)
   await assert.rejects(() => economy.pay(user.uid, { gold: 999 }, { source: 'shop.buy' }), (error) => error.code === 'INSUFFICIENT_BALANCE')
   await assert.rejects(() => economy.reward(user.uid, { gold: 1 }, { source: 'invalid' }), (error) => error.code === 'VALIDATION_FAILED')
 })

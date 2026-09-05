@@ -36,17 +36,17 @@ export class FaithBulkOperationsService {
     private transactions: FaithBusinessTransactionService,
   ) {}
 
-  incrementValuesForAll(delta: Readonly<UserValueDelta>, options: FaithBulkOptions) {
+  changeValuesForAll(delta: Readonly<UserValueDelta>, options: FaithBulkOptions) {
     const allowed = new Set(["gold", "ascension_score", "audience_score", "audience_rank", "abandon_count"]);
     for (const [field, value] of Object.entries(delta)) {
       if (!allowed.has(field)) throw new FaithCoreError("VALIDATION_FAILED", `不允许批量修改字段：${field}`);
-      if (!Number.isFinite(value) || value <= 0) throw new FaithCoreError("VALIDATION_FAILED", `全体数值增量必须为正数：${field}`);
-      if ((field === "audience_rank" || field === "abandon_count") && !Number.isSafeInteger(value)) throw new FaithCoreError("VALIDATION_FAILED", `${field} 增量必须是安全整数`);
+      if (!Number.isFinite(value) || value === 0) throw new FaithCoreError("VALIDATION_FAILED", `全体数值变化必须是非零有限数字：${field}`);
+      if (["gold", "ascension_score", "audience_rank", "abandon_count"].includes(field) && !Number.isSafeInteger(value)) throw new FaithCoreError("VALIDATION_FAILED", `${field} 变化必须是安全整数`);
     }
-    if (!Object.keys(delta).length) throw new FaithCoreError("VALIDATION_FAILED", "全体数值增量不能为空");
+    if (!Object.keys(delta).length) throw new FaithCoreError("VALIDATION_FAILED", "全体数值变化不能为空");
     return this.run(options, "values", { delta: { ...delta } }, (uid, idempotencyKey) =>
       this.transactions.run("core_bulk", uid, (scope) => scope.users.change({ ...delta }), {
-        idempotencyKey, source: "bulk.increment-values", metadata: { operationId: options.operationId },
+        idempotencyKey, source: "bulk.change-values", metadata: { operationId: options.operationId },
       }));
   }
 

@@ -22,7 +22,7 @@ export class FaithEconomyService {
 
   async canAfford(uid: number, cost: Readonly<FaithMoney>) {
     const normalized = normalizePositiveMoney(cost, "费用", true), current = await this.getWallet(uid);
-    return CURRENCIES.every((currency) => current[currency] >= (normalized[currency] ?? 0));
+    return requestedCurrencies(normalized).every((currency) => current[currency] >= normalized[currency]!);
   }
 
   async requireFunds(uid: number, cost: Readonly<FaithMoney>) {
@@ -114,9 +114,10 @@ function normalizePositiveMoney(input: Readonly<FaithMoney>, label: string, allo
 }
 function wallet(user: FaithCoreUserData): FaithWallet { return Object.freeze({ uid: user.uid, gold: user.gold, ascension_score: user.ascension_score }); }
 function assertAffordable(current: FaithWallet, cost: Readonly<FaithMoney>) {
-  const missing = CURRENCIES.filter((currency) => current[currency] < (cost[currency] ?? 0));
+  const missing = requestedCurrencies(cost).filter((currency) => current[currency] < cost[currency]!);
   if (missing.length) throw new FaithCoreError("INSUFFICIENT_BALANCE", "货币余额不足", { uid: current.uid, missing, wallet: current, cost: { ...cost } });
 }
+function requestedCurrencies(value: Readonly<FaithMoney>) { return CURRENCIES.filter((currency) => value[currency] !== undefined); }
 function negate(value: Readonly<FaithMoney>): Readonly<FaithMoney> { return Object.freeze(Object.fromEntries(Object.entries(value).map(([key, amount]) => [key, -amount])) as FaithMoney); }
 function auditOptions(options: FaithEconomyOptions) {
   if (!options) throw new FaithCoreError("VALIDATION_FAILED", "经济操作选项不能为空");

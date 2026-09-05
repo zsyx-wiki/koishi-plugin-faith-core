@@ -145,7 +145,6 @@ export class FaithBusinessTransactionService {
           (after as unknown as Record<string, number>)[key] += value as number;
         }
         validateValues(after);
-        if (after.gold < 0) throw new FaithCoreError("INSUFFICIENT_BALANCE", "金币余额不足", { uid });
         if (after.abandon_count < 0 || !Number.isSafeInteger(after.abandon_count)) throw new Error("弃誓次数不能为负数且必须是安全整数");
         ensureActive();
         const patch = Object.fromEntries(entries.map(([key]) => [key, after[key as keyof UserValueDelta]]));
@@ -229,11 +228,11 @@ export class FaithBusinessTransactionService {
       getWallet: async () => atomicWallet(await users.get()),
       canAfford: async (cost) => {
         const normalized = atomicMoney(cost), current = atomicWallet(await users.get());
-        return ECONOMY_CURRENCIES.every((currency) => current[currency] >= (normalized[currency] ?? 0));
+        return requestedAtomicCurrencies(normalized).every((currency) => current[currency] >= normalized[currency]!);
       },
       pay: async (cost) => {
         const normalized = atomicMoney(cost), current = atomicWallet(await users.get());
-        const missing = ECONOMY_CURRENCIES.filter((currency) => current[currency] < (normalized[currency] ?? 0));
+        const missing = requestedAtomicCurrencies(normalized).filter((currency) => current[currency] < normalized[currency]!);
         if (missing.length) throw new FaithCoreError("INSUFFICIENT_BALANCE", "货币余额不足", { uid, missing, wallet: current, cost: { ...normalized } });
         return users.change(Object.fromEntries(Object.entries(normalized).map(([key, value]) => [key, -value])) as UserValueDelta);
       },
@@ -294,6 +293,7 @@ function atomicMoney(input: Readonly<FaithMoney>): Readonly<FaithMoney> {
   return Object.freeze(result);
 }
 function atomicWallet(user: FaithCoreUserData): FaithWallet { return Object.freeze({ uid: user.uid, gold: user.gold, ascension_score: user.ascension_score }); }
+function requestedAtomicCurrencies(value: Readonly<FaithMoney>) { return ECONOMY_CURRENCIES.filter((currency) => value[currency] !== undefined); }
 function valueQuery(user: FaithCoreUserData) { return { uid: user.uid, gold: user.gold, ascension_score: user.ascension_score, audience_score: user.audience_score, audience_rank: user.audience_rank, abandon_count: user.abandon_count }; }
 function userStateQuery(user: FaithCoreUserData) { return { ...valueQuery(user), profession_id: user.profession_id, status: user.status, status_reason: user.status_reason }; }
 function validateValues(user: FaithCoreUserData) {

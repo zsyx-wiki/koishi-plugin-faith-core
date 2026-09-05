@@ -96,7 +96,7 @@ export interface FaithBusinessEffectsApi {
   list(query?: Parameters<FaithEffectsService["list"]>[0]): Promise<FaithEffectRow[]>;
 }
 export interface FaithBusinessBulkApi {
-  incrementValuesForAll(delta: Readonly<UserValueDelta>, options: FaithBulkOptions): Promise<FaithBulkResult>;
+  changeValuesForAll(delta: Readonly<UserValueDelta>, options: FaithBulkOptions): Promise<FaithBulkResult>;
   giveItemToAll(itemIdOrName: string, quantity: number, options: FaithBulkOptions): Promise<FaithBulkResult>;
 }
 export interface FaithBusinessEconomyOptions extends Omit<FaithEconomyOptions, "source"> { action: string; }
@@ -212,7 +212,7 @@ export function createBusinessBulkApi(service: FaithBulkOperationsService, busin
     return { ...value, operationId: `${business}:${value.operationId}` };
   };
   return Object.freeze({
-    incrementValuesForAll: (delta, value) => service.incrementValuesForAll(delta, options(value)),
+    changeValuesForAll: (delta, value) => service.changeValuesForAll(delta, options(value)),
     giveItemToAll: (item, quantity, value) => service.giveItemToAll(item, quantity, options(value)),
   });
 }

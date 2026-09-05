@@ -157,7 +157,6 @@ export class FaithUsersService {
           if (value !== undefined) after[key] += value;
         }
         validateUserValues(after);
-        if (after.gold < 0) throw new FaithCoreError("INSUFFICIENT_BALANCE", "金币余额不足", { uid });
         if (after.abandon_count < 0 || !Number.isSafeInteger(after.abandon_count)) throw new Error("弃誓次数不能为负数且必须是安全整数");
         const patch = Object.fromEntries(Object.keys(applied).map((key) => [key, after[key as keyof UserValueDelta]]));
         await assertUserWrite(database, userValueQuery(before), { ...patch, updated_at: new Date() });
